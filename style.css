@@ -1,0 +1,166 @@
+/* ============================================================
+   موسوعة الرجال — design system v3 (manuscript warm)
+   Tokens + components + responsive rules. Injected once by ui.load_css().
+   ============================================================ */
+@import url('https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Cairo:wght@400;600;700;800&display=swap');
+
+:root {
+  --bg: #faf7f1;
+  --bg-soft: #f1ece2;
+  --card: #fffdf9;
+  --line: #e7dfd0;
+  --ink: #2b2317;
+  --ink-soft: #6b5d4a;
+  --gold: #b8860b;
+  --gold-soft: #fbf4e2;
+  --accent: #175d4f;
+  --accent-soft: #e8f1ee;
+  --thiqa: #2e7d32;  --hasan: #689f38;  --muwathaq: #00897b;
+  --mukhtalaf: #ef6c00;  --daif: #c62828;  --majhul: #8d8d8d;
+  --radius: 14px;
+  --shadow: 0 1px 4px rgba(70, 55, 30, .08);
+}
+
+/* ---- base / RTL ---- */
+html, body, [class*="css"], .stMarkdown, .stMarkdown p, .stTextInput, .stSelectbox,
+.stTextArea, label, .stRadio, .stButton button, .stExpander, div[data-testid="stExpander"] summary {
+  font-family: 'Cairo', 'Amiri', sans-serif !important;
+}
+.main .block-container { direction: rtl; text-align: right; max-width: 1100px; padding-top: .8rem; }
+section[data-testid="stSidebar"] { direction: rtl; text-align: right; }
+h1,h2,h3,h4 { font-family: 'Cairo', sans-serif !important; color: var(--ink); }
+
+/* ---- generic card ---- */
+.r-card {
+  border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 18px 22px; margin-bottom: 14px;
+  background: var(--card); box-shadow: var(--shadow);
+}
+.r-card.gold { border-right: 4px solid var(--gold); background: var(--gold-soft); }
+.r-card.flag { border-right: 4px solid #e6a700; background: #fdf6e3; }
+
+/* ---- chips ---- */
+.r-chip {
+  display: inline-block; padding: 3px 13px; border-radius: 20px;
+  font-size: .8rem; font-weight: 700; color: #fff; margin: 0 0 4px 6px; white-space: nowrap;
+}
+.r-chip.outline { background: var(--bg-soft); color: var(--ink-soft); border: 1px solid var(--line); font-weight: 600; }
+.r-chip.tab { background: var(--accent-soft); color: var(--accent); border: 1px solid #cfe0db; font-weight: 700; }
+
+/* ---- pills (facts) ---- */
+.r-pill {
+  display: inline-block; padding: 3px 12px; border-radius: 10px;
+  background: var(--bg-soft); color: var(--ink-soft); font-size: .8rem;
+  margin: 0 0 5px 6px; border: 1px solid var(--line);
+}
+
+/* ---- narrator name header ---- */
+.r-name { font-size: 1.65rem; font-weight: 800; color: var(--ink); letter-spacing: -0.2px; }
+.r-sub  { color: var(--ink-soft); font-size: .85rem; }
+
+/* ---- classical text quote (Amiri) ---- */
+.r-quote {
+  font-family: 'Amiri', serif !important; font-size: 1.12rem; line-height: 2.1;
+  background: var(--bg-soft); border-radius: 10px; border-right: 3px solid var(--gold);
+  padding: 12px 18px; margin: 8px 0; color: var(--ink);
+}
+.r-bookpage {
+  font-family: 'Amiri', serif !important; font-size: 1.18rem; line-height: 2.15;
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 26px 34px; color: var(--ink); box-shadow: var(--shadow);
+}
+.r-bookpage mark { background: #ffe9a8; padding: 0 3px; border-radius: 4px; }
+
+/* ---- stats band (home) ---- */
+.r-statband { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin: 14px 0 6px; }
+.r-stat {
+  flex: 1 1 140px; max-width: 200px; text-align: center;
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 14px 10px; box-shadow: var(--shadow);
+}
+.r-stat .num { font-size: 1.5rem; font-weight: 800; color: var(--accent); }
+.r-stat .lbl { font-size: .82rem; color: var(--ink-soft); }
+
+/* ---- hero (home) ---- */
+.r-hero { text-align: center; padding: 26px 10px 6px; }
+.r-hero h1 { font-size: 2.1rem; font-weight: 800; margin-bottom: 2px; }
+.r-hero p  { color: var(--ink-soft); margin-top: 0; }
+
+/* ---- isnad stepper ---- */
+.isnad-node {
+  background: var(--card); border: 1px solid var(--line); border-right: 4px solid var(--accent);
+  border-radius: 12px; padding: 10px 16px; margin: 0; box-shadow: var(--shadow);
+  display: inline-block; min-width: 260px;
+}
+.isnad-node.imam { border-right-color: var(--gold); background: var(--gold-soft); }
+.isnad-node.unresolved { border-right-color: var(--daif); }
+.isnad-node a { color: var(--ink); text-decoration: none; font-weight: 700; }
+.isnad-node a:hover { color: var(--accent); }
+.isnad-level { margin: 0; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.isnad-conn {
+  margin: 0 26px; padding: 2px 0 2px 0; font-size: .78rem; font-weight: 700;
+  border-right: 2px dashed var(--line); padding-right: 14px; min-height: 26px;
+  display: flex; align-items: center; gap: 8px;
+}
+.isnad-conn.ok  { color: var(--thiqa); }
+.isnad-conn.bad { color: var(--daif); }
+.isnad-conn.warn{ color: var(--mukhtalaf); }
+.isnad-atf { color: var(--ink-soft); font-size: .76rem; }
+
+/* ---- grade box ---- */
+.r-grade {
+  padding: 16px 22px; border-radius: var(--radius); color: #fff; text-align: center;
+  font-size: 1.15rem; font-weight: 800; margin-top: 12px; box-shadow: var(--shadow);
+}
+.r-grade .why { font-size: .85rem; font-weight: 600; opacity: .92; display: block; margin-top: 2px; }
+
+/* ---- book tiles ---- */
+.r-tile {
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 16px 18px; box-shadow: var(--shadow); margin-bottom: 4px; min-height: 112px;
+}
+.r-tile .t { font-weight: 800; font-size: 1.02rem; color: var(--ink); }
+.r-tile .a { color: var(--ink-soft); font-size: .8rem; }
+.r-tile .m { color: var(--accent); font-size: .78rem; font-weight: 700; margin-top: 4px; }
+
+/* ---- buttons (global restyle) ---- */
+.stButton button {
+  border-radius: 10px; border: 1px solid var(--line); background: var(--card);
+  color: var(--ink); text-align: right; box-shadow: none; font-weight: 600;
+}
+.stButton button:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.stButton button[kind="primary"] {
+  background: var(--accent); color: #fff; border: none; font-weight: 800;
+}
+.stButton button[kind="primary"]:hover { background: #114539; color: #fff; }
+
+/* ---- segmented control (top nav) ---- */
+div[data-testid="stSegmentedControl"] { direction: rtl; }
+div[data-testid="stSegmentedControl"] button { font-weight: 700; }
+
+/* ---- expander polish ---- */
+div[data-testid="stExpander"] {
+  border: 1px solid var(--line); border-radius: 12px; background: var(--card);
+}
+
+/* ---- inputs ---- */
+.stTextInput input, .stTextArea textarea { border-radius: 10px !important; }
+
+/* ---- amber flag note ---- */
+.r-flagnote {
+  background: #fdf6e3; border: 1px solid #ecd9a0; border-radius: 10px;
+  color: #7a5b00; padding: 8px 14px; font-size: .85rem; margin: 6px 0;
+}
+
+/* ============ MOBILE ============ */
+@media (max-width: 640px) {
+  .main .block-container { padding-left: .6rem; padding-right: .6rem; }
+  div[data-testid="column"] { min-width: 100% !important; flex: 1 1 100% !important; }
+  .r-name { font-size: 1.25rem; }
+  .r-hero h1 { font-size: 1.5rem; }
+  .r-card { padding: 13px 15px; }
+  .r-bookpage { padding: 16px 18px; font-size: 1.06rem; }
+  .isnad-node { min-width: 0; width: 100%; }
+  .r-stat { flex: 1 1 40%; }
+  .stButton button { width: 100%; }
+}
