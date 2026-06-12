@@ -146,6 +146,17 @@ div[data-testid="stExpander"] {
 /* ---- inputs ---- */
 .stTextInput input, .stTextArea textarea { border-radius: 10px !important; }
 
+/* ---- narrator result rows (open in new tab) ---- */
+a.r-row {
+  display: flex; align-items: center; gap: 10px; justify-content: space-between;
+  background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+  padding: 9px 16px; margin-bottom: 7px; text-decoration: none; color: var(--ink);
+  font-weight: 600; transition: border-color .12s, background .12s;
+}
+a.r-row:hover { border-color: var(--accent); background: var(--accent-soft); }
+a.r-row .meta { color: var(--ink-soft); font-size: .8rem; font-weight: 500; white-space: nowrap; }
+a.r-row .nm2 { flex: 1; }
+
 /* ---- amber flag note ---- */
 .r-flagnote {
   background: #fdf6e3; border: 1px solid #ecd9a0; border-radius: 10px;

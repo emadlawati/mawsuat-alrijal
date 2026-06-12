@@ -96,13 +96,10 @@ def render_stepper(levels, link_flags=None):
     st.markdown(ui.grade_box(g, col, why), unsafe_allow_html=True)
 
 def result_rows(results, key_prefix, limit=30):
-    """Search/browse result rows: full-width buttons with verdict emoji + tabaqa."""
+    """Search/browse result rows — each opens the profile in a NEW browser tab."""
     vm = db.verdict_map(); tm = db.tab_map()
-    for d, name in results[:limit]:
-        em = db.reliability(vm[d])[2] if d in vm else '⚪'
-        tb = f" · ط{tm[d]}" if d in tm else ''
-        if st.button(f"{em}  {name}{tb}", key=f"{key_prefix}{d}", use_container_width=True):
-            goto(NAV[1], d_id=d)
+    html = ''.join(ui.narrator_row(d, name, vm.get(d), tm.get(d)) for d, name in results[:limit])
+    st.markdown(html, unsafe_allow_html=True)
 
 # ---------------------------------------------------------------- narrator profile
 def render_profile(d_id):
@@ -137,10 +134,11 @@ def render_profile(d_id):
         st.markdown(ui.flagnote("لم يتيسّر التحقق الآلي من تقويم هذا الراوي في برنامج دراية النور، "
                                 f"فيُرجى التحقق منه يدوياً. ({flag['detail']})"), unsafe_allow_html=True)
 
-    # evaluations (multi-authority)
+    # evaluations — show BOTH Dirayah fields: evaluation_result (حصيلة التقويم) + aggregate (جمع التقويم)
     for ev in n['evals']:
         body = ''
-        if ev['aggregate']: body += f"<b>حصيلة التقويم:</b> {ev['aggregate']}<br>"
+        if ev['verdict']: body += f"<b>حصيلة التقويم:</b> {ev['verdict']}<br>"
+        if ev['aggregate']: body += f"<b>جمع التقويم:</b> {ev['aggregate']}<br>"
         if ev['jarh_tadil']: body += ui.quote(ev['jarh_tadil'])
         st.markdown(ui.card(f"<b>📊 تقويم دراية النور</b><br>{body}"), unsafe_allow_html=True)
     if mufid:
@@ -268,12 +266,10 @@ def page_library():
         if c3.button("التالي ▶", disabled=ss['lib_page'] >= pages - 1): ss['lib_page'] += 1; st.rerun()
         rows = db.browse_narrators(ss['lib_page'] * PER, PER)
         vm = db.verdict_map()
-        for i, r in enumerate(rows):
-            num = ss['lib_page'] * PER + i + 1
-            em = db.reliability(vm[r['d_id']])[2] if r['d_id'] in vm else '⚪'
-            tb = f" · ط{r['tabaqa']}" if r['tabaqa'] else ''
-            if st.button(f"{num}. {em}  {r['standard_name']}{tb}", key=f"b{r['d_id']}", use_container_width=True):
-                ss['d_id'] = r['d_id']; st.rerun()
+        html = ''.join(ui.narrator_row(r['d_id'], r['standard_name'], vm.get(r['d_id']),
+                                       r['tabaqa'], num=ss['lib_page'] * PER + i + 1)
+                       for i, r in enumerate(rows))
+        st.markdown(html, unsafe_allow_html=True)
     st.divider()
     if ss['d_id']:
         render_profile(ss['d_id'])
@@ -288,7 +284,8 @@ def page_books():
         authors = {'najashi': 'النجاشي (ت450)', 'fihrist_tusi': 'الطوسي (ت460)', 'rijal_tusi': 'الطوسي (ت460)',
                    'kashshi': 'الكشي/الطوسي', 'qamoos_al_rijal': 'التستري', 'khulasa': 'العلامة الحلي (ت726)',
                    'ibn_dawud': 'ابن داود الحلي', 'ibn_ghadairi': 'ابن الغضائري', 'barqi': 'البرقي',
-                   'alf_rajul': 'السيد غيث شبر', 'mujam_khoei': 'السيد الخوئي (ت1413)'}
+                   'alf_rajul': 'السيد غيث شبر', 'mujam_khoei': 'السيد الخوئي (ت1413)',
+                   'qabasat': 'الشيخ مسلم الداوري'}
         for i, s in enumerate(stats):
             with cols[i % 3]:
                 pct = round(100 * s['matched'] / s['total']) if s['total'] else 0
