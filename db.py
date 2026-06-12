@@ -227,11 +227,19 @@ def split_isnad(text):
     segs = []
     for p in parts:
         p = re.sub(r'\s+', ' ', p).strip(' .،:؛-')
-        # split عطف on ' و ' when both sides look like names
-        for sub in re.split(r'\s+و\s+(?=[ء-ي])', p) if ' و ' in p else [p]:
-            sub = _CLEAN.sub('', sub).strip(' .،:')
-            if sub and re.search(r'[ء-ي]', sub) and len(sub) >= 2:
-                segs.append(sub)
+        # split عطف on ' و ' only when both halves have formal nasab (بن)
+        if ' و ' in p:
+            subs = re.split(r'\s+و\s+(?=[ء-ي])', p)
+            subs = [_CLEAN.sub('', s).strip(' .،:') for s in subs]
+            all_ben = all(bool(re.search(r'بن', s)) for s in subs if s)
+            if all_ben and len(subs) > 1:
+                for s in subs:
+                    if s and re.search(r'[ء-ي]', s) and len(s) >= 2:
+                        segs.append(s)
+                continue
+        p = _CLEAN.sub('', p).strip(' .،:')
+        if p and re.search(r'[ء-ي]', p) and len(p) >= 2:
+            segs.append(p)
     return segs
 
 @st.cache_resource
