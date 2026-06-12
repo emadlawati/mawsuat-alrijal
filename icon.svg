@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="80" fill="#175d4f"/>
+  <text x="256" y="280" text-anchor="middle" font-family="serif" font-size="220" fill="#fbf4e2">📜</text>
+  <text x="256" y="440" text-anchor="middle" font-family="sans-serif" font-size="48" font-weight="700" fill="#fbf4e2">الرجال</text>
+</svg>

@@ -9,7 +9,7 @@ CSS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'style.css')
 def load_css():
     with open(CSS_PATH, encoding='utf-8') as f:
         css_core = f.read()
-    pwa_html = '<link rel="manifest" href="manifest.json"><script>if("serviceWorker"in navigator){navigator.serviceWorker.register("sw.js")}</script>'
+    pwa_html = '<link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon.svg"><script>if("serviceWorker"in navigator){navigator.serviceWorker.register("sw.js")}</script>'
     st.markdown(f"<style>{css_core}</style>{pwa_html}", unsafe_allow_html=True)
 
 # ---------------- chips & pills ----------------
