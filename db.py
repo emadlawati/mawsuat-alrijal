@@ -7,7 +7,8 @@ import streamlit as st
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _CORE = os.path.join(os.path.dirname(_HERE), 'rijal_core.db')   # local development (live data)
 _PUBLIC = os.path.join(_HERE, 'rijal_public.db')                # deployed copy (next to the app)
-DB_URL = "https://github.com/emadlawati/mawsuat-alrijal/releases/download/v1.0/rijal_public.db"
+DB_URL = "https://huggingface.co/spaces/emadlawati/mawsuat-alrijal/resolve/main/rijal_public.db"
+# Fallback: "https://github.com/emadlawati/mawsuat-alrijal/releases/download/v1.0/rijal_public.db"
 
 def _ensure_db():
     if os.path.exists(_CORE): return _CORE
