@@ -1,11 +1,28 @@
-"""Data-access layer for the Rijal app. Cached SQLite queries over rijal_core.db."""
-import os, re, sqlite3, json
+"""Data-access layer for the Rijal app. Cached SQLite queries over rijal_public.db.
+On Streamlit Cloud the database (347MB) is too large for the git repo, so it is downloaded
+once from the GitHub Release asset on first boot and cached on local disk."""
+import os, re, sqlite3, json, urllib.request
 import streamlit as st
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _CORE = os.path.join(os.path.dirname(_HERE), 'rijal_core.db')   # local development (live data)
 _PUBLIC = os.path.join(_HERE, 'rijal_public.db')                # deployed copy (next to the app)
-DB = _CORE if os.path.exists(_CORE) else _PUBLIC
+DB_URL = "https://github.com/emadlawati/mawsuat-alrijal/releases/download/v1.0/rijal_public.db"
+
+def _ensure_db():
+    if os.path.exists(_CORE): return _CORE
+    if os.path.exists(_PUBLIC) and os.path.getsize(_PUBLIC) > 10_000_000: return _PUBLIC
+    ph = st.progress(0.0, text="جارٍ تنزيل قاعدة البيانات لأول مرة (347MB) — دقيقة أو دقيقتين…")
+    tmp = _PUBLIC + '.part'
+    def hook(blocks, bs, total):
+        if total > 0: ph.progress(min(blocks * bs / total, 1.0),
+                                  text=f"جارٍ تنزيل قاعدة البيانات… {blocks*bs//1048576}/{total//1048576} MB")
+    urllib.request.urlretrieve(DB_URL, tmp, reporthook=hook)
+    os.replace(tmp, _PUBLIC)
+    ph.empty()
+    return _PUBLIC
+
+DB = _ensure_db()
 
 # book_id (as used in book_entries) -> Arabic title
 BOOK_TITLES = {
