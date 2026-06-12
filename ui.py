@@ -8,16 +8,19 @@ CSS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'style.css')
 
 def load_css():
     with open(CSS_PATH, encoding='utf-8') as f:
-        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+        css_core = f.read()
+    pwa_html = '<link rel="manifest" href="manifest.json"><script>if("serviceWorker"in navigator){navigator.serviceWorker.register("sw.js")}</script>'
+    st.markdown(f"<style>{css_core}</style>{pwa_html}", unsafe_allow_html=True)
 
 # ---------------- chips & pills ----------------
-def chip(text, color=None, cls=''):
+def chip(text, color=None, cls='', aria_label=''):
     style = f"style='background:{color}'" if color else ''
-    return f"<span class='r-chip {cls}' {style}>{text}</span>"
+    al = f" aria-label='{aria_label}'" if aria_label else ''
+    return f"<span class='r-chip {cls}' {style}{al}>{text}</span>"
 
 def verdict_chip(verdict, prefix=''):
     lab, col, em = db.reliability(verdict)
-    return chip(f"{em} {prefix}{lab}", col)
+    return chip(f"{em} {prefix}{lab}", col, aria_label=f'الدرجة: {prefix}{lab}')
 
 def tabaqah_chip(t):
     """t = narrator_tabaqah row dict."""

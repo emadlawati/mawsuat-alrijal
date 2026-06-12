@@ -204,6 +204,15 @@ def render_network(d_id):
     # arrow flows teacher→student (knowledge transmission: «روى عنه»)
     for t, s, cnt in edges: g.edge(t, s)
     st.graphviz_chart(g, use_container_width=True)
+    with st.expander("عرض البيانات كقائمة (لمتصفحي الشاشة)"):
+        teachers = [(n,d) for n,(_,r) in nodes.items() if r=='teacher']
+        students = [(n,d) for n,(_,r) in nodes.items() if r=='student']
+        if teachers:
+            st.caption(f"الشيوخ ({len(teachers)}):")
+            st.markdown(' · '.join(d[:28] for _,d in teachers))
+        if students:
+            st.caption(f"التلاميذ ({len(students)}):")
+            st.markdown(' · '.join(d[:28] for _,d in students))
     st.caption("🟢 شيوخه · 🟦 الراوي · 🟠 تلاميذه — السهم باتجاه «روى عنه» (من الشيخ إلى تلميذه)")
 
 IMAMS = [("النبي ﷺ", -52, 11), ("عليّ ع", -23, 40), ("الحسن ع", 3, 50), ("الحسين ع", 4, 61),
@@ -221,6 +230,8 @@ def render_timeline(tb, wafat, wiladat):
         color=alt.Color('نوع:N', scale=alt.Scale(domain=['إمام', 'الراوي'], range=['#b8860b', '#175d4f']), legend=None),
         tooltip=['الاسم', 'من', 'إلى']).properties(height=350)
     st.altair_chart(ch, use_container_width=True)
+    with st.expander("عرض البيانات كجدول (لمتصفحي الشاشة)"):
+        st.dataframe(df[["الاسم","من","إلى"]], use_container_width=True, hide_index=True)
     st.caption(f"الطبقة {db.TAB_AR.get(tb['tabaqa'], tb['tabaqa'])}"
                + (f" (تمتد من الطبقة {lo} إلى {hi})" if hi != lo else "")
                + " — موقع الراوي الزمني مقارنةً بحياة الأئمة عليهم السلام.")
@@ -388,7 +399,8 @@ def page_isnad():
         txt = st.text_area("نصّ السند", key="is_txt", height=110,
                            placeholder="محمد بن يعقوب عن علي بن إبراهيم عن أبيه …")
         if st.button("🔍 حلّل السند", type="primary", use_container_width=True) and txt.strip():
-            ss['is_res'] = db.resolve_isnad(txt)
+            with st.spinner("جارٍ تحليل السند…"):
+                ss['is_res'] = db.resolve_isnad(txt)
         if ss.get('is_res'):
             res = ss['is_res']
             levels = [[{'d_id': r['d_id'], 'name': r['name'], 'note': r.get('note')}] for r in res]
