@@ -1,28 +1,11 @@
-"""Data-access layer for the Rijal app. Cached SQLite queries over rijal_public.db.
-On Streamlit Cloud the database (342MB) is too large for the git repo, so it is downloaded
-once from the GitHub Release asset on first boot and cached on local disk."""
-import os, re, sqlite3, json, urllib.request
+"""Data-access layer for the Rijal app. Cached SQLite queries over rijal_core.db."""
+import os, re, sqlite3, json
 import streamlit as st
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _CORE = os.path.join(os.path.dirname(_HERE), 'rijal_core.db')   # local development (live data)
 _PUBLIC = os.path.join(_HERE, 'rijal_public.db')                # deployed copy (next to the app)
-DB_URL = "https://github.com/emadlawati/mawsuat-alrijal/releases/download/v1.0/rijal_public.db"
-
-def _ensure_db():
-    if os.path.exists(_CORE): return _CORE
-    if os.path.exists(_PUBLIC) and os.path.getsize(_PUBLIC) > 10_000_000: return _PUBLIC
-    ph = st.progress(0.0, text="جارٍ تنزيل قاعدة البيانات لأول مرة (342MB) — دقيقة أو دقيقتين…")
-    tmp = _PUBLIC + '.part'
-    def hook(blocks, bs, total):
-        if total > 0: ph.progress(min(blocks * bs / total, 1.0),
-                                  text=f"جارٍ تنزيل قاعدة البيانات… {blocks*bs//1048576}/{total//1048576} MB")
-    urllib.request.urlretrieve(DB_URL, tmp, reporthook=hook)
-    os.replace(tmp, _PUBLIC)
-    ph.empty()
-    return _PUBLIC
-
-DB = _ensure_db()
+DB = _CORE if os.path.exists(_CORE) else _PUBLIC
 
 # book_id (as used in book_entries) -> Arabic title
 BOOK_TITLES = {
@@ -30,7 +13,6 @@ BOOK_TITLES = {
     'kashshi': 'رجال الكشّي', 'qamoos_al_rijal': 'قاموس الرجال', 'khulasa': 'خلاصة الأقوال (الحلّي)',
     'ibn_dawud': 'رجال ابن داود', 'ibn_ghadairi': 'رجال ابن الغضائري', 'barqi': 'رجال البرقي',
     'alf_rajul': 'ألف رجل (الطبقات)', 'mujam_khoei': 'معجم رجال الحديث (الخوئي)',
-    'qabasat': 'قبسات من علم الرجال',
 }
 TAB_AR = {1:'الأولى',2:'الثانية',3:'الثالثة',4:'الرابعة',5:'الخامسة',6:'السادسة',7:'السابعة',
           8:'الثامنة',9:'التاسعة',10:'العاشرة',11:'الحادية عشرة',12:'الثانية عشرة'}
@@ -235,7 +217,7 @@ def book_pages_search(book_id, q, limit=50):
 # ---------- isnad free-text resolver ----------
 _CONN_RE = re.compile(r'\s*(?:حدّثنا|حدثنا|حدّثني|حدثني|أخبرنا|اخبرنا|أخبرني|اخبرني|أنبأنا|انبأنا|'
                       r'روى\s+عن|يرفعه\s+إلى|رفعه\s+إلى|عن\s+|قال\s+حدثني|قال\s+لي\s+(?=[ء-ي])|'
-                      r'قال\s+(?=[ء-ي])|سمعت\s+(?=[ء-ي])|وعنه|عنه)\s*'
+                      r'قال\s+(?=[ء-ي])|سمعت\s+(?=[ء-ي])|وعنه|عنه)\s*')
 _CLEAN = re.compile(r'^(?:قال\s+(?:لي\s+)?|أخبر(?:نا|ني)\s+|حدث(?:نا|ني)\s+|أنبأ(?:نا|ني)\s+)')
 def split_isnad(text):
     """Split an isnad into narrator name segments on transmission verbs and عن."""
@@ -261,6 +243,38 @@ def _relcount():
     c = _conn()
     return {(t, s): cc for t, s, cc in c.execute("SELECT teacher_did, student_did, chain_count FROM relations")}
 
+# ---------- chain bigram & trigram indices (from 183k isnads) ----------
+@st.cache_resource
+def _chain_bigrams():
+    """(student_did, teacher_did) -> count of times this pair appears consecutively in chains."""
+    c = _conn()
+    try:
+        rows = c.execute("""
+            SELECT a.d_id, b.d_id, COUNT(*) as cnt
+            FROM chain_narrators a
+            JOIN chain_narrators b ON a.chain_id=b.chain_id AND a.level+1=b.level
+            GROUP BY a.d_id, b.d_id
+        """).fetchall()
+        return {(r[0], r[1]): r[2] for r in rows}
+    except Exception:
+        return {}
+
+@st.cache_resource
+def _chain_trigrams():
+    """(s2, s1, t) -> count of 3-level chain sequences (s2 -> s1 -> t)."""
+    c = _conn()
+    try:
+        rows = c.execute("""
+            SELECT a.d_id, b.d_id, c.d_id, COUNT(*) as cnt
+            FROM chain_narrators a
+            JOIN chain_narrators b ON a.chain_id=b.chain_id AND a.level+1=b.level
+            JOIN chain_narrators c ON a.chain_id=c.chain_id AND b.level+1=c.level
+            GROUP BY a.d_id, b.d_id, c.d_id
+        """).fetchall()
+        return {(r[0], r[1], r[2]): r[3] for r in rows}
+    except Exception:
+        return {}
+
 # common Imam kunyas / titles -> d_id (isnads almost always end here)
 IMAM_KUNYA = {
     'ابي عبد الله':'D01491','الصادق':'D01491','جعفر بن محمد':'D01491',
@@ -276,13 +290,15 @@ _REL_REF = re.compile(r'^(?:عن\s+)?(?:ابيه|أبيه|ابوه|أبوه|وا
 _REL_KIN = {'ابيه':'اب','أبيه':'اب','ابوه':'اب','أبوه':'اب','والده':'اب',
             'عمه':'عم','عَمِّه':'عم','أخيه':'اخ','أَخِيه':'اخ','اخیه':'اخ'}
 def resolve_isnad(text, topk=6):
-    """Resolve each segment to a d_id via search + relation-aware Viterbi (A عن B => B teaches A).
+    """Resolve each segment to a d_id via search + chain-scored Viterbi (A عن B => B teaches A).
+    Scores candidates by name-match (primary) + chain frequency from 183k chains (tiebreaker).
     Handles Imam kunyas and relative references (أبيه, عمه, أخيه)."""
     segs = split_isnad(text)
     nsegs = [norm(s) for s in segs]
     cand = []   # per segment: list of (d_id, name)
-    rel = _relset()
     c = _conn()
+    bigrams = _chain_bigrams()
+    trigrams = _chain_trigrams()
     for i, s in enumerate(segs):
         ns = nsegs[i]
         if IMAM_KUNYA.get(ns):                      # Imam by kunya/name
@@ -293,87 +309,82 @@ def resolve_isnad(text, topk=6):
             cand.append(('REL', kin)); continue
         hits = search_narrators(s, limit=topk)
         cand.append(hits if hits else [(None, s)])
-    # Greedy left-to-right: segment i is the TEACHER of segment i-1 (A عن B). Pick the candidate that
-    # teaches the previously-resolved narrator; resolve relatives accordingly.
-    def teachers_of(did, limit=8):
-        rows = c.execute("""SELECT n.d_id,n.standard_name FROM relations r JOIN narrators n ON n.d_id=r.teacher_did
-            WHERE r.student_did=? ORDER BY r.chain_count DESC LIMIT ?""", (did, limit)).fetchall()
-        return [(r[0], r[1]) for r in rows]
-    def nasab_tokens(did):
+    def nasab_toks(did):
         pn = c.execute("SELECT standard_name FROM narrators WHERE d_id=?", (did,)).fetchone()
         if not pn: return None, None
-        tk = norm(pn[0]).split()
+        tk = pn[0].split()
         ftok = ''
         for k, tt in enumerate(tk):
-            if tt == 'بن' and k+1 < len(tk): ftok = tk[k+1]; break
-        # first token is narrator's own name; ftok is father's name (after first 'بن')
-        return (tk[0] if tk else '', ftok)
-    out = []; prev = None; prev_name = None
+            if tt.strip() == 'بن' and k+1 < len(tk): ftok = tk[k+1].strip(); break
+        return (tk[0].strip() if tk else '', ftok)
+    out = []; prev = None; prev2 = None; import math
     for i in range(len(cand)):
-        ci = cand[i]; seg = segs[i]
-        note = None
+        ci = cand[i]; seg = segs[i]; note = None
         if isinstance(ci, tuple) and ci[0] == 'REL':
             kin = ci[1]
-            if kin == 'اب':       # أبيه — father of previous narrator
+            if kin == 'اب':
                 seg = 'أبيه'; ci = [(None, 'أبيه')]
                 if prev:
-                    _, ftok = nasab_tokens(prev)
-                    ts = teachers_of(prev)
+                    _, ftok = nasab_toks(prev)
+                    ts = sorted([(s, cnt) for (t, s), cnt in bigrams.items() if t == prev], key=lambda x: -x[1])
+                    ts_info = [(t, c.execute("SELECT standard_name FROM narrators WHERE d_id=?", (t,)).fetchone()) for t, _ in ts[:10]]
+                    ts_info = [(d, nm[0] if nm else d) for d, nm in ts_info]
                     if ftok:
-                        matched = [(d, nm) for d, nm in ts if norm(nm).split() and norm(nm).split()[0].startswith(ftok[:4])]
-                        ci = matched or ts or [(None, 'أبيه')]
+                        matched = [(d, nm) for d, nm in ts_info if norm(nm).split() and norm(nm).split()[0].startswith(ftok[:4])]
+                        ci = matched[:6] or ts_info[:6] or [(None, 'أبيه')]
                     else:
-                        ci = ts or [(None, 'أبيه')]
-            elif kin == 'عم':     # عمه — uncle (father's brother): find father, then his brother
+                        ci = ts_info[:6] or [(None, 'أبيه')]
+            elif kin == 'عم':
                 seg = 'عمه'; ci = [(None, 'عمه')]
                 if prev:
-                    _, ftok = nasab_tokens(prev)
-                    ts = teachers_of(prev)
-                    if ftok:
-                        # look for a teacher of prev whose name starts with ftok (= father)
-                        # then find his brother: same grandfather, different father
-                        father_cands = [(d, nm) for d, nm in ts if norm(nm).split() and norm(nm).split()[0].startswith(ftok[:4])]
-                        if father_cands:
-                            ci = father_cands[:1]
-                        else:
-                            # fallback: use strongest-connected teacher kin
-                            ci = ts[:1] if ts else [(None, 'عمه')]
-                    else:
-                        ci = ts[:1] if ts else [(None, 'عمه')]
+                    ts = sorted([(s, cnt) for (t, s), cnt in bigrams.items() if t == prev], key=lambda x: -x[1])
+                    ts_info = [(t, c.execute("SELECT standard_name FROM narrators WHERE d_id=?", (t,)).fetchone()) for t, _ in ts[:8]]
+                    ts_info = [(d, nm[0] if nm else d) for d, nm in ts_info]
+                    ci = ts_info or [(None, 'عمه')]
                     note = '(عمه — تقدير)'
-            elif kin == 'اخ':     # أخيه — brother: same father, pick a teacher sharing nasab
+            elif kin == 'اخ':
                 seg = 'أخيه'; ci = [(None, 'أخيه')]
                 if prev:
-                    my_name, ftok = nasab_tokens(prev)
-                    ts = teachers_of(prev)
+                    my_name, ftok = nasab_toks(prev)
+                    ts = sorted([(s, cnt) for (t, s), cnt in bigrams.items() if t == prev], key=lambda x: -x[1])
+                    ts_info = [(t, c.execute("SELECT standard_name FROM narrators WHERE d_id=?", (t,)).fetchone()) for t, _ in ts[:12]]
+                    ts_info = [(d, nm[0] if nm else d) for d, nm in ts_info]
                     if ftok and my_name:
-                        # brother has same father (ftok) but different first name
-                        matched = [(d, nm) for d, nm in ts
+                        matched = [(d, nm) for d, nm in ts_info
                                    if norm(nm).split() and norm(nm).split()[0] != my_name[:4]
                                    and any(w.startswith(ftok[:4]) for w in norm(nm).split()[1:])]
-                        if not matched:
-                            # fallback: teachers whose nasab matches
-                            matched = [(d, nm) for d, nm in ts
-                                       if norm(nm).split() and any(w.startswith(ftok[:4]) for w in norm(nm).split())]
-                        ci = matched or ts[:1] if ts else [(None, 'أخيه')]
+                        ci = matched or ts_info or [(None, 'أخيه')]
                     else:
-                        ci = ts[:1] if ts else [(None, 'أخيه')]
-                    note = '(أخيه — تقدير)'
-        # choose candidate best connected to prev (teaches prev) — prefer the strongest (most chains) link
-        pick = ci[0]
-        if prev:
-            rc = _relcount()
-            connected = [(d, nm) for d, nm in ci if d and (d, prev) in rel]
-            if connected:
-                pick = max(connected, key=lambda x: rc.get((x[0], prev), 0))
-        d, name = pick
-        link_ok = ((d, prev) in rel) if (i > 0 and d and prev) else (None if i == 0 else False)
-        out.append({'segment': seg, 'd_id': d, 'name': name, 'alts': ci[:6], 'link_ok': link_ok})
+                        ci = ts_info or [(None, 'أخيه')]
+                    note = '(أخيه — تقدير)' if ci else None
+        # Score: name-match primary; chain frequency as tiebreaker (capped log bonus)
+        scored = []
+        for d, name in (ci if isinstance(ci, list) else [(None, seg)]):
+            search_score = 4 if d and norm(name) == nsegs[i] else \
+                          (3 if d and (nsegs[i] in norm(name) or norm(name)[:6] == nsegs[i][:6]) else \
+                          (2 if d else 0))
+            chain_boost = 0
+            if d and prev:
+                bc = bigrams.get((prev, d), 0)
+                if bc > 0:
+                    chain_boost = min(10, int(math.log2(bc + 1)))
+            if d and prev2 and prev:
+                tc = trigrams.get((prev2, prev, d), 0)
+                if tc > 0:
+                    chain_boost += 3
+            scored.append((d, name, search_score * 100 + chain_boost, chain_boost, search_score))
+        scored.sort(key=lambda x: -x[2])
+        d, name = scored[0][0], scored[0][1]
+        best_bc = 0
+        if d and prev:
+            best_bc = bigrams.get((prev, d), 0)
+        link_ok = bool(best_bc) if (i > 0 and d and prev) else (None if i == 0 else False)
+        out.append({'segment': seg, 'd_id': d, 'name': name, 'alts': [],
+                    'link_ok': link_ok, 'chain_count': best_bc if i > 0 else 0})
         if note: out[-1]['note'] = note
+        prev2 = prev
         prev = d if d else prev
     return out
-
-# ---------- broken-link check for existing chains ----------
 def chain_links(levels):
     """For consecutive levels, does ANY narrator in level i+1 teach ANY in level i? (chain flows L0<-L1<-...)"""
     rel = _relset(); flags=[]

@@ -61,7 +61,7 @@ def narrator_brief(d_id):
     t = n['tabaqah']['tabaqa'] if n['tabaqah'] else None
     return (n['standard_name'], v, bool(n['is_masum']), t)
 
-def render_stepper(levels, link_flags=None):
+def render_stepper(levels, link_flags=None, chain_counts=None):
     """levels: [[{'d_id','name'}...]] top=author side, bottom=Imam side. Returns members for grading."""
     html = []; members = []
     for i, lvl in enumerate(levels):
@@ -91,7 +91,9 @@ def render_stepper(levels, link_flags=None):
                     u = lvl[0].get('d_id'); w = levels[i+1][0].get('d_id')
                     if u and w and db.tabaqah_gap(w, u):
                         status, note = 'warn', 'لم تثبت رواية بينهما، مع تباعدٍ في طبقتيهما'
-            html.append(ui.isnad_conn(status, note))
+            if chain_counts and i < len(chain_counts):
+                cc = chain_counts[i]
+            html.append(ui.isnad_conn(status, note, chain_count=cc))
     st.markdown(f"<div>{''.join(html)}</div>", unsafe_allow_html=True)
     g, col, why = compute_grade(members)
     st.markdown(ui.grade_box(g, col, why), unsafe_allow_html=True)
@@ -390,7 +392,8 @@ def page_isnad():
             res = ss['is_res']
             levels = [[{'d_id': r['d_id'], 'name': r['name'], 'note': r.get('note')}] for r in res]
             flags = [bool(res[i+1]['link_ok']) for i in range(len(res) - 1)]
-            render_stepper(levels, flags)
+            cc_list = [res[i+1].get('chain_count', 0) for i in range(len(res) - 1)]
+            render_stepper(levels, flags, chain_counts=cc_list)
             with st.expander("احتمالات أخرى لتحديد الرواة (إن أخطأ التحديد)"):
                 for r in res:
                     alts = " · ".join(n for _, n in (r['alts'] or [])[:4])

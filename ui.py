@@ -77,12 +77,21 @@ def isnad_level(nodes_html, atf=False):
     atf_tag = "<span class='isnad-atf'>(عطف — في الطبقة نفسها)</span>" if atf else ''
     return f"<div class='isnad-level'>{''.join(nodes_html)}{atf_tag}</div>"
 
-def isnad_conn(status, note=''):
+def isnad_conn(status, note='', chain_count=0):
     """status: 'ok' | 'bad' | 'warn' | 'none'."""
-    icon = {'ok': '✓ الرواية بينهما ثابتة', 'bad': '⚠ لم تثبت رواية بينهما في القاعدة',
-            'warn': '⚠ ' + note, 'none': '↓'}.get(status, '↓')
+    base = {'ok': '✓ ', 'bad': '⚠ ', 'warn': '⚠ ', 'none': '↓'}.get(status, '↓')
+    if status == 'ok' and chain_count > 0:
+        txt = f'{base}الرواية بينهما ثابتة (في {chain_count:,} سنداً)'
+    elif status == 'ok':
+        txt = f'{base}الرواية بينهما ثابتة'
+    elif status == 'bad':
+        txt = '⚠ لم تثبت رواية بينهما في الأسانيد'
+    elif status == 'warn':
+        txt = f'⚠ {note}'
+    else:
+        txt = '↓'
     cls = status if status in ('ok', 'bad', 'warn') else ''
-    return f"<div class='isnad-conn {cls}'>{icon}</div>"
+    return f"<div class='isnad-conn {cls}'>{txt}</div>"
 
 def grade_box(grade, color, why):
     return (f"<div class='r-grade' style='background:{color}'>حكم السند: {grade}"
