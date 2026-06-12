@@ -13,6 +13,7 @@ BOOK_TITLES = {
     'kashshi': 'رجال الكشّي', 'qamoos_al_rijal': 'قاموس الرجال', 'khulasa': 'خلاصة الأقوال (الحلّي)',
     'ibn_dawud': 'رجال ابن داود', 'ibn_ghadairi': 'رجال ابن الغضائري', 'barqi': 'رجال البرقي',
     'alf_rajul': 'ألف رجل (الطبقات)', 'mujam_khoei': 'معجم رجال الحديث (الخوئي)',
+    'wafi_asaneed': 'الوافي في تحقيق أسناد الكافي',
 }
 TAB_AR = {1:'الأولى',2:'الثانية',3:'الثالثة',4:'الرابعة',5:'الخامسة',6:'السادسة',7:'السابعة',
           8:'الثامنة',9:'التاسعة',10:'العاشرة',11:'الحادية عشرة',12:'الثانية عشرة'}
@@ -243,6 +244,17 @@ def _relcount():
     c = _conn()
     return {(t, s): cc for t, s, cc in c.execute("SELECT teacher_did, student_did, chain_count FROM relations")}
 
+# ---------- tabaqah map for scorer ----------
+@st.cache_resource
+def _tabaqah_map():
+    """d_id -> (tabaqa, tabaqah_low, tabaqah_high) for scoring."""
+    c = _conn()
+    try:
+        rows = c.execute("SELECT d_id, tabaqa, tabaqah_low, tabaqah_high FROM narrator_tabaqah").fetchall()
+        return {r['d_id']: (r['tabaqa'] or 0, r['tabaqah_low'] or r['tabaqa'] or 0, r['tabaqah_high'] or r['tabaqa'] or 0) for r in rows}
+    except Exception:
+        return {}
+
 # ---------- chain bigram & trigram indices (from 183k isnads) ----------
 @st.cache_resource
 def _chain_bigrams():
@@ -357,22 +369,43 @@ def resolve_isnad(text, topk=6):
                     else:
                         ci = ts_info or [(None, 'أخيه')]
                     note = '(أخيه — تقدير)' if ci else None
-        # Score: name-match primary; chain frequency as tiebreaker (capped log bonus)
+        # Score priority: (1) name-match, (2) tabaqah, (3) network, (4) chain frequency
+        import math
+        relset = _relset()
+        tabq = _tabaqah_map()
         scored = []
         for d, name in (ci if isinstance(ci, list) else [(None, seg)]):
-            search_score = 4 if d and norm(name) == nsegs[i] else \
-                          (3 if d and (nsegs[i] in norm(name) or norm(name)[:6] == nsegs[i][:6]) else \
-                          (2 if d else 0))
-            chain_boost = 0
+            total = 0
+            # 1. Name matching (primary, weight ×1000)
+            if not d:
+                total += 0
+            elif norm(name) == nsegs[i]:
+                total += 4000
+            elif nsegs[i] in norm(name) or norm(name)[:8] == nsegs[i][:8]:
+                total += 3000
+            else:
+                total += 2000
+            # 2. Tabaqah matching: teacher's tabaqa should be ≥ student's tabaqa
+            if d and prev and prev in tabq and d in tabq:
+                pt = tabq[prev]; dt = tabq[d]
+                p_high = pt[2]; d_low = dt[1]  # student's upper bound vs teacher's lower bound
+                if d_low <= p_high + 1:   # plausible age relation
+                    total += 50
+                elif d_low <= p_high + 3: # slightly stretched  
+                    total += 20
+            # 3. Network: documented teacher-student relationship
+            if d and prev and (prev, d) in relset:
+                total += 10
+            # 4. Chain frequency (capped log bonus, small tiebreaker)
             if d and prev:
                 bc = bigrams.get((prev, d), 0)
                 if bc > 0:
-                    chain_boost = min(10, int(math.log2(bc + 1)))
+                    total += min(5, int(math.log2(bc + 1)))
             if d and prev2 and prev:
                 tc = trigrams.get((prev2, prev, d), 0)
                 if tc > 0:
-                    chain_boost += 3
-            scored.append((d, name, search_score * 100 + chain_boost, chain_boost, search_score))
+                    total += 1
+            scored.append((d, name, total))
         scored.sort(key=lambda x: -x[2])
         d, name = scored[0][0], scored[0][1]
         best_bc = 0

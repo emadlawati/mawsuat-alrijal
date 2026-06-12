@@ -292,6 +292,7 @@ def page_books():
                    'kashshi': 'الكشي/الطوسي', 'qamoos_al_rijal': 'التستري', 'khulasa': 'العلامة الحلي (ت726)',
                    'ibn_dawud': 'ابن داود الحلي', 'ibn_ghadairi': 'ابن الغضائري', 'barqi': 'البرقي',
                    'alf_rajul': 'السيد غيث شبر', 'mujam_khoei': 'السيد الخوئي (ت1413)',
+                   'wafi_asaneed': 'السيد غيث شبر',
                    'qabasat': 'الشيخ مسلم الداوري'}
         for i, s in enumerate(stats):
             with cols[i % 3]:
