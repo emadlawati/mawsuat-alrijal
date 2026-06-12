@@ -64,13 +64,14 @@ def narrator_row(d_id, name, verdict=None, tab=None, num=None):
             f"<span class='nm2'>{n}{em} {name}</span><span class='meta'>{meta} ↗</span></a>")
 
 # ---------------- isnad stepper ----------------
-def isnad_node(name, d_id=None, verdict=None, tab=None, is_imam=False):
+def isnad_node(name, d_id=None, verdict=None, tab=None, is_imam=False, note=None):
     cls = 'isnad-node imam' if is_imam else ('isnad-node' if d_id else 'isnad-node unresolved')
     vch = verdict_chip(verdict) if verdict else (chip('🌟 معصوم', 'var(--gold)') if is_imam else '')
     tch = f"<span class='r-sub'> ط{tab}</span>" if tab else ''
     nm = (f"<a href='?n={d_id}' target='_self'>{name}</a>" if d_id
           else f"<span style='color:var(--daif)'>{name} <span class='r-sub'>(لم يُحدَّد)</span></span>")
-    return f"<div class='{cls}'>{nm} {vch}{tch}</div>"
+    nnote = f" <span class='r-sub'>{note}</span>" if note else ''
+    return f"<div class='{cls}'>{nm} {vch}{tch}{nnote}</div>"
 
 def isnad_level(nodes_html, atf=False):
     atf_tag = "<span class='isnad-atf'>(عطف — في الطبقة نفسها)</span>" if atf else ''

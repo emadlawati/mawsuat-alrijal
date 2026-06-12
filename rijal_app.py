@@ -69,16 +69,17 @@ def render_stepper(levels, link_flags=None):
         any_imam = False
         for nar in lvl:
             d = nar.get('d_id')
+            note = nar.get('note')  # e.g., '(عمه — تقدير)'
             if d:
                 b = narrator_brief(d)
                 if b:
                     name, v, masum, tab = b
                     any_imam = any_imam or masum
                     members.append((name, v, masum))
-                    nodes.append(ui.isnad_node(nar.get('name') or name, d, v, tab, masum))
+                    nodes.append(ui.isnad_node(nar.get('name') or name, d, v, tab, masum, note=note))
                     continue
             members.append((nar.get('name') or '؟', None, False))
-            nodes.append(ui.isnad_node(nar.get('name') or '؟'))
+            nodes.append(ui.isnad_node(nar.get('name') or '؟', note=note))
         html.append(ui.isnad_level(nodes, atf=len(lvl) > 1))
         if i < len(levels) - 1:
             status = 'none'; note = ''
@@ -185,19 +186,23 @@ def render_profile(d_id):
         st.markdown(" · ".join(n['aliases']) if n['aliases'] else "—")
 
 def render_network(d_id):
-    nodes, edges = db.network_edges(d_id, max_each=7)
+    n_each = st.slider("عدد الشيوخ/التلاميذ المعروضين", 5, 80, 25, key=f"net_n_{d_id}")
+    nodes, edges = db.network_edges(d_id, max_each=n_each)
     if len(nodes) <= 1:
         st.caption("لا توجد علاقات مسجّلة في الشبكة."); return
-    g = graphviz.Digraph(); g.attr(rankdir='RL', bgcolor='transparent', nodesep='0.25', ranksep='0.7')
-    g.attr('node', shape='box', style='rounded,filled', fontname='Arial', fontsize='11')
-    g.attr('edge', color='#bfae8e', arrowsize='0.6')
+    g = graphviz.Digraph(); g.attr(rankdir='RL', bgcolor='transparent', nodesep='0.16', ranksep='0.6'
+                                   , size='8,11', ratio='compress')
+    g.attr('node', shape='box', style='rounded,filled', fontname='Arial', fontsize='11', margin='0.10,0.04')
+    g.attr('edge', color='#bfae8e', arrowsize='0.7')
     col = {'me': '#175d4f', 'teacher': '#2e7d32', 'student': '#ef6c00'}
     fcol = {'me': '#e8f1ee', 'teacher': '#e8f5e9', 'student': '#fff3e0'}
     for nid, (name, role) in nodes.items():
-        g.node(nid, name[:24], color=col[role], fillcolor=fcol[role], fontcolor='#2b2317')
+        lbl = name[:28] + ('…' if len(name) > 28 else '')
+        g.node(nid, lbl, color=col[role], fillcolor=fcol[role], fontcolor='#2b2317')
+    # arrow flows teacher→student (knowledge transmission: «روى عنه»)
     for t, s, cnt in edges: g.edge(t, s)
     st.graphviz_chart(g, use_container_width=True)
-    st.caption("🟢 المشايخ · 🟦 الراوي · 🟠 التلاميذ — الاتجاه من التلميذ إلى الشيخ")
+    st.caption("🟢 شيوخه · 🟦 الراوي · 🟠 تلاميذه — السهم باتجاه «روى عنه» (من الشيخ إلى تلميذه)")
 
 IMAMS = [("النبي ﷺ", -52, 11), ("عليّ ع", -23, 40), ("الحسن ع", 3, 50), ("الحسين ع", 4, 61),
          ("السجاد ع", 38, 95), ("الباقر ع", 57, 114), ("الصادق ع", 83, 148), ("الكاظم ع", 127, 183),
@@ -383,7 +388,7 @@ def page_isnad():
             ss['is_res'] = db.resolve_isnad(txt)
         if ss.get('is_res'):
             res = ss['is_res']
-            levels = [[{'d_id': r['d_id'], 'name': r['name']}] for r in res]
+            levels = [[{'d_id': r['d_id'], 'name': r['name'], 'note': r.get('note')}] for r in res]
             flags = [bool(res[i+1]['link_ok']) for i in range(len(res) - 1)]
             render_stepper(levels, flags)
             with st.expander("احتمالات أخرى لتحديد الرواة (إن أخطأ التحديد)"):

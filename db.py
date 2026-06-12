@@ -234,7 +234,9 @@ def book_pages_search(book_id, q, limit=50):
 
 # ---------- isnad free-text resolver ----------
 _CONN_RE = re.compile(r'\s*(?:حدّثنا|حدثنا|حدّثني|حدثني|أخبرنا|اخبرنا|أخبرني|اخبرني|أنبأنا|انبأنا|'
-                      r'روى\s+عن|يرفعه\s+إلى|رفعه\s+إلى|عن|قال\s+حدثني|سمعت|وعنه|عنه)\s+')
+                      r'روى\s+عن|يرفعه\s+إلى|رفعه\s+إلى|عن\s+|قال\s+حدثني|قال\s+لي\s+(?=[ء-ي])|'
+                      r'قال\s+(?=[ء-ي])|سمعت\s+(?=[ء-ي])|وعنه|عنه)\s*'
+_CLEAN = re.compile(r'^(?:قال\s+(?:لي\s+)?|أخبر(?:نا|ني)\s+|حدث(?:نا|ني)\s+|أنبأ(?:نا|ني)\s+)')
 def split_isnad(text):
     """Split an isnad into narrator name segments on transmission verbs and عن."""
     text = re.sub(r'[«»"\(\)\[\]]', ' ', text or '')
@@ -244,7 +246,7 @@ def split_isnad(text):
         p = re.sub(r'\s+', ' ', p).strip(' .،:؛-')
         # split عطف on ' و ' when both sides look like names
         for sub in re.split(r'\s+و\s+(?=[ء-ي])', p) if ' و ' in p else [p]:
-            sub = sub.strip(' .،:')
+            sub = _CLEAN.sub('', sub).strip(' .،:')
             if sub and re.search(r'[ء-ي]', sub) and len(sub) >= 2:
                 segs.append(sub)
     return segs
@@ -270,10 +272,12 @@ IMAM_KUNYA = {
     'امير المؤمنين':'D02847','علي بن ابي طالب':'D02847','ابي الحسن علي':'D02847',
     'زين العابدين':'D02928','السجاد':'D02928','علي بن الحسين':'D02928',
 }
-_REL_FATHER = re.compile(r'^(?:عن\s+)?(?:ابيه|أبيه|ابوه|أبوه|والده)$')
+_REL_REF = re.compile(r'^(?:عن\s+)?(?:ابيه|أبيه|ابوه|أبوه|والده|عمه|عَمِّه|أخيه|أَخِيه|اخیه)$')
+_REL_KIN = {'ابيه':'اب','أبيه':'اب','ابوه':'اب','أبوه':'اب','والده':'اب',
+            'عمه':'عم','عَمِّه':'عم','أخيه':'اخ','أَخِيه':'اخ','اخیه':'اخ'}
 def resolve_isnad(text, topk=6):
     """Resolve each segment to a d_id via search + relation-aware Viterbi (A عن B => B teaches A).
-    Handles Imam kunyas and the relative reference 'أبيه' (= father of the previous narrator)."""
+    Handles Imam kunyas and relative references (أبيه, عمه, أخيه)."""
     segs = split_isnad(text)
     nsegs = [norm(s) for s in segs]
     cand = []   # per segment: list of (d_id, name)
@@ -284,31 +288,77 @@ def resolve_isnad(text, topk=6):
         if IMAM_KUNYA.get(ns):                      # Imam by kunya/name
             d = IMAM_KUNYA[ns]; nm = c.execute("SELECT standard_name FROM narrators WHERE d_id=?", (d,)).fetchone()
             cand.append([(d, nm[0] if nm else s)]); continue
-        if _REL_FATHER.match(ns) and i > 0:         # 'أبيه' -> previous narrator's father (a teacher of theirs)
-            cand.append('FATHER'); continue
+        if _REL_REF.match(ns) and i > 0:            # relative reference (أبيه / عمه / أخيه)
+            kin = _REL_KIN.get(ns, 'اب')
+            cand.append(('REL', kin)); continue
         hits = search_narrators(s, limit=topk)
         cand.append(hits if hits else [(None, s)])
     # Greedy left-to-right: segment i is the TEACHER of segment i-1 (A عن B). Pick the candidate that
-    # teaches the previously-resolved narrator; resolve 'أبيه' to that narrator's father (one of his teachers).
-    def teachers_of(did, like=None, limit=8):
+    # teaches the previously-resolved narrator; resolve relatives accordingly.
+    def teachers_of(did, limit=8):
         rows = c.execute("""SELECT n.d_id,n.standard_name FROM relations r JOIN narrators n ON n.d_id=r.teacher_did
             WHERE r.student_did=? ORDER BY r.chain_count DESC LIMIT ?""", (did, limit)).fetchall()
         return [(r[0], r[1]) for r in rows]
-    out = []; prev = None
+    def nasab_tokens(did):
+        pn = c.execute("SELECT standard_name FROM narrators WHERE d_id=?", (did,)).fetchone()
+        if not pn: return None, None
+        tk = norm(pn[0]).split()
+        ftok = ''
+        for k, tt in enumerate(tk):
+            if tt == 'بن' and k+1 < len(tk): ftok = tk[k+1]; break
+        # first token is narrator's own name; ftok is father's name (after first 'بن')
+        return (tk[0] if tk else '', ftok)
+    out = []; prev = None; prev_name = None
     for i in range(len(cand)):
         ci = cand[i]; seg = segs[i]
-        if ci == 'FATHER':
-            seg = 'أبيه'; ci = [(None, 'أبيه')]
-            if prev:
-                pn = c.execute("SELECT standard_name FROM narrators WHERE d_id=?", (prev,)).fetchone()
-                ftok = ''
-                if pn:
-                    tk = norm(pn[0]).split()
-                    for k, tt in enumerate(tk):
-                        if tt == 'بن' and k+1 < len(tk): ftok = tk[k+1]; break
-                ts = teachers_of(prev)
-                matched = [(d, nm) for d, nm in ts if ftok and norm(nm).split() and norm(nm).split()[0].startswith(ftok[:4])]
-                ci = matched or ts or [(None, 'أبيه')]
+        note = None
+        if isinstance(ci, tuple) and ci[0] == 'REL':
+            kin = ci[1]
+            if kin == 'اب':       # أبيه — father of previous narrator
+                seg = 'أبيه'; ci = [(None, 'أبيه')]
+                if prev:
+                    _, ftok = nasab_tokens(prev)
+                    ts = teachers_of(prev)
+                    if ftok:
+                        matched = [(d, nm) for d, nm in ts if norm(nm).split() and norm(nm).split()[0].startswith(ftok[:4])]
+                        ci = matched or ts or [(None, 'أبيه')]
+                    else:
+                        ci = ts or [(None, 'أبيه')]
+            elif kin == 'عم':     # عمه — uncle (father's brother): find father, then his brother
+                seg = 'عمه'; ci = [(None, 'عمه')]
+                if prev:
+                    _, ftok = nasab_tokens(prev)
+                    ts = teachers_of(prev)
+                    if ftok:
+                        # look for a teacher of prev whose name starts with ftok (= father)
+                        # then find his brother: same grandfather, different father
+                        father_cands = [(d, nm) for d, nm in ts if norm(nm).split() and norm(nm).split()[0].startswith(ftok[:4])]
+                        if father_cands:
+                            ci = father_cands[:1]
+                        else:
+                            # fallback: use strongest-connected teacher kin
+                            ci = ts[:1] if ts else [(None, 'عمه')]
+                    else:
+                        ci = ts[:1] if ts else [(None, 'عمه')]
+                    note = '(عمه — تقدير)'
+            elif kin == 'اخ':     # أخيه — brother: same father, pick a teacher sharing nasab
+                seg = 'أخيه'; ci = [(None, 'أخيه')]
+                if prev:
+                    my_name, ftok = nasab_tokens(prev)
+                    ts = teachers_of(prev)
+                    if ftok and my_name:
+                        # brother has same father (ftok) but different first name
+                        matched = [(d, nm) for d, nm in ts
+                                   if norm(nm).split() and norm(nm).split()[0] != my_name[:4]
+                                   and any(w.startswith(ftok[:4]) for w in norm(nm).split()[1:])]
+                        if not matched:
+                            # fallback: teachers whose nasab matches
+                            matched = [(d, nm) for d, nm in ts
+                                       if norm(nm).split() and any(w.startswith(ftok[:4]) for w in norm(nm).split())]
+                        ci = matched or ts[:1] if ts else [(None, 'أخيه')]
+                    else:
+                        ci = ts[:1] if ts else [(None, 'أخيه')]
+                    note = '(أخيه — تقدير)'
         # choose candidate best connected to prev (teaches prev) — prefer the strongest (most chains) link
         pick = ci[0]
         if prev:
@@ -319,6 +369,7 @@ def resolve_isnad(text, topk=6):
         d, name = pick
         link_ok = ((d, prev) in rel) if (i > 0 and d and prev) else (None if i == 0 else False)
         out.append({'segment': seg, 'd_id': d, 'name': name, 'alts': ci[:6], 'link_ok': link_ok})
+        if note: out[-1]['note'] = note
         prev = d if d else prev
     return out
 
