@@ -3,13 +3,52 @@
 Manuscript-warm design · top navigation · mobile-friendly.
 Run:  streamlit run app/rijal_app.py
 """
+import os, base64, json as _json
 import streamlit as st
+import streamlit.components.v1 as _components
 import graphviz, pandas as pd, altair as alt
 import db, ui
 
 st.set_page_config(page_title="موسوعة الرجال", page_icon="📜", layout="wide",
                    initial_sidebar_state="collapsed")
 ui.load_css()
+
+# ---- PWA wiring (installable on phone). Self-contained; to remove: `git revert` this commit. ----
+def _inject_pwa():
+    here = os.path.dirname(os.path.abspath(__file__))
+    try:
+        manifest = _json.load(open(os.path.join(here, 'manifest.json'), encoding='utf-8'))
+        svg = open(os.path.join(here, 'icon.svg'), encoding='utf-8').read()
+    except Exception:
+        return
+    icon_uri = 'data:image/svg+xml;base64,' + base64.b64encode(svg.encode('utf-8')).decode()
+    manifest['icons'] = [{'src': icon_uri, 'sizes': 'any', 'type': 'image/svg+xml', 'purpose': 'any'}]
+    man_uri = 'data:application/manifest+json;base64,' + base64.b64encode(
+        _json.dumps(manifest, ensure_ascii=False).encode('utf-8')).decode()
+    theme = manifest.get('theme_color', '#faf7f1')
+    title = manifest.get('short_name', 'موسوعة الرجال')
+    _components.html(f"""<script>
+    (function() {{
+      var d = window.parent.document;
+      if (d.getElementById('pwa-meta')) return;
+      var m = d.createElement('meta'); m.id = 'pwa-meta'; d.head.appendChild(m);
+      function add(tag, attrs) {{
+        var el = d.createElement(tag);
+        for (var k in attrs) el.setAttribute(k, attrs[k]);
+        d.head.appendChild(el);
+      }}
+      add('link', {{rel: 'manifest', href: '{man_uri}'}});
+      add('link', {{rel: 'apple-touch-icon', href: '{icon_uri}'}});
+      add('meta', {{name: 'theme-color', content: '{theme}'}});
+      add('meta', {{name: 'apple-mobile-web-app-capable', content: 'yes'}});
+      add('meta', {{name: 'mobile-web-app-capable', content: 'yes'}});
+      add('meta', {{name: 'apple-mobile-web-app-status-bar-style', content: 'default'}});
+      add('meta', {{name: 'apple-mobile-web-app-title', content: '{title}'}});
+    }})();
+    </script>""", height=0)
+
+_inject_pwa()
+# ---- end PWA wiring ----
 
 ss = st.session_state
 for k, v in [('d_id', None), ('cur_book', None), ('chain_id', None), ('lib_page', 0),
