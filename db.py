@@ -7,8 +7,12 @@ import streamlit as st
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _CORE = os.path.join(os.path.dirname(_HERE), 'rijal_core.db')   # local development (live data)
 _PUBLIC = os.path.join(_HERE, 'rijal_public.db')                # deployed copy (next to the app)
-DB_URL = "https://huggingface.co/spaces/emadlawati/mawsuat-alrijal/resolve/main/rijal_public.db"
-# Fallback: "https://github.com/emadlawati/mawsuat-alrijal/releases/download/v1.0/rijal_public.db"
+# Deployed app downloads the DB from a GitHub Release asset on first boot.
+# v1.1 = current data; v1.0 = fallback so the app stays up while v1.1 is being uploaded.
+DB_URLS = [
+    "https://github.com/emadlawati/mawsuat-alrijal/releases/download/v1.1/rijal_public.db",
+    "https://github.com/emadlawati/mawsuat-alrijal/releases/download/v1.0/rijal_public.db",
+]
 
 def _ensure_db():
     if os.path.exists(_CORE): return _CORE
@@ -18,10 +22,17 @@ def _ensure_db():
     def hook(blocks, bs, total):
         if total > 0: ph.progress(min(blocks * bs / total, 1.0),
                                   text=f"جارٍ تنزيل قاعدة البيانات… {blocks*bs//1048576}/{total//1048576} MB")
-    urllib.request.urlretrieve(DB_URL, tmp, reporthook=hook)
-    os.replace(tmp, _PUBLIC)
+    last = None
+    for url in DB_URLS:
+        try:
+            urllib.request.urlretrieve(url, tmp, reporthook=hook)
+            os.replace(tmp, _PUBLIC)
+            ph.empty()
+            return _PUBLIC
+        except Exception as e:
+            last = e
     ph.empty()
-    return _PUBLIC
+    raise RuntimeError(f"تعذّر تنزيل قاعدة البيانات: {last}")
 
 DB = _ensure_db()
 
