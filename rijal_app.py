@@ -121,7 +121,7 @@ def render_stepper(levels, link_flags=None, chain_counts=None):
             nodes.append(ui.isnad_node(nar.get('name') or '؟', note=note))
         html.append(ui.isnad_level(nodes, atf=len(lvl) > 1))
         if i < len(levels) - 1:
-            status = 'none'; note = ''
+            status = 'none'; note = ''; cc = 0
             if link_flags is not None and i < len(link_flags):
                 ok = link_flags[i]
                 if ok: status = 'ok'
