@@ -6,10 +6,11 @@ import streamlit as st
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _CORE = os.path.join(os.path.dirname(_HERE), 'rijal_core.db')   # local development (live data)
-_PUBLIC = os.path.join(_HERE, 'rijal_public.db')                # deployed copy (next to the app)
+_PUBLIC = os.path.join(_HERE, 'rijal_public_v12.db')           # versioned cache → re-downloads on bump
 # Deployed app downloads the DB from a GitHub Release asset on first boot.
-# v1.1 = current data; v1.0 = fallback so the app stays up while v1.1 is being uploaded.
+# v1.2 = current data (Khoei 2nd authority + duplicate-merge); v1.1/v1.0 = fallback during upload.
 DB_URLS = [
+    "https://github.com/emadlawati/mawsuat-alrijal/releases/download/v1.2/rijal_public.db",
     "https://github.com/emadlawati/mawsuat-alrijal/releases/download/v1.1/rijal_public.db",
     "https://github.com/emadlawati/mawsuat-alrijal/releases/download/v1.0/rijal_public.db",
 ]
@@ -43,6 +44,7 @@ BOOK_TITLES = {
     'ibn_dawud': 'رجال ابن داود', 'ibn_ghadairi': 'رجال ابن الغضائري', 'barqi': 'رجال البرقي',
     'alf_rajul': 'ألف رجل (الطبقات)', 'mujam_khoei': 'معجم رجال الحديث (الخوئي)',
     'wafi_asaneed': 'الوافي في تحقيق أسناد الكافي',
+    'mufid_mujam': 'المفيد من معجم رجال الحديث (الجواهري)',
 }
 TAB_AR = {1:'الأولى',2:'الثانية',3:'الثالثة',4:'الرابعة',5:'الخامسة',6:'السادسة',7:'السابعة',
           8:'الثامنة',9:'التاسعة',10:'العاشرة',11:'الحادية عشرة',12:'الثانية عشرة'}
@@ -482,14 +484,19 @@ TAB_YEARS = {1:(-51,-15,19,55),2:(-14,22,56,92),3:(23,59,93,129),4:(60,96,135,16
              6:(135,171,205,241),7:(172,209,242,279),8:(210,246,280,316),9:(247,284,317,354),
              10:(285,322,355,392),11:(323,359,393,430),12:(361,397,431,467)}
 
-# ---------- Khoei/Mufid second authority (authentic book data from المفيد من معجم رجال الحديث) ----------
-MUFID_VERDICT_AR = {'thiqah': 'ثقة', 'daif': 'ضعيف', 'majhul': 'مجهول'}
-
+# ---------- Khoei second authority (verbatim from المفيد من معجم رجال الحديث, al-Jawahiri) ----------
 @st.cache_data
-def mufid_eval(d_id):
-    """DISABLED: the Mufid->d_id matching proved unreliable (contradictory many-to-one rows).
-    Kept as a stub returning None until the Mufid matching is redone properly."""
-    return None
+def khoei_eval(d_id):
+    """Sayyid al-Khoei's verdict (verbatim from al-Mufid) + al-Jawahiri's exact quote. None if absent."""
+    c = _conn()
+    try:
+        r = c.execute("SELECT verdict, quote, source FROM khoei_evaluations WHERE d_id=?", (d_id,)).fetchone()
+    except Exception:
+        return None
+    return dict(r) if r else None
+
+def mufid_eval(d_id):   # backwards-compat alias
+    return khoei_eval(d_id)
 
 @st.cache_data
 def eval_flag(d_id):
@@ -531,9 +538,13 @@ def tab_map():
 @st.cache_data
 def global_stats():
     c = _conn()
+    def _count(sql):
+        try: return c.execute(sql).fetchone()[0]
+        except Exception: return 0
     return {
         'narrators': c.execute("SELECT COUNT(*) FROM narrators").fetchone()[0],
         'evals': c.execute("SELECT COUNT(DISTINCT d_id) FROM evaluations").fetchone()[0],
+        'khoei': _count("SELECT COUNT(*) FROM khoei_evaluations"),
         'tabaqah': c.execute("SELECT COUNT(*) FROM narrator_tabaqah").fetchone()[0],
         'chains': c.execute("SELECT COUNT(*) FROM chains").fetchone()[0],
         'books': c.execute("SELECT COUNT(DISTINCT book_id) FROM book_entries").fetchone()[0],

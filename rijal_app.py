@@ -148,13 +148,13 @@ def render_profile(d_id):
     n = db.narrator(d_id)
     if not n:
         st.warning("لم يُعثر على الراوي."); return
-    mufid = db.mufid_eval(d_id)
+    khoei = db.khoei_eval(d_id)
     flag = db.eval_flag(d_id)
 
     chips = ''
     if n['is_masum']: chips += ui.chip('🌟 معصوم', 'var(--gold)')
     if n['evals']: chips += ui.verdict_chip(n['evals'][0]['verdict'])
-    if mufid: chips += ui.verdict_chip(mufid['verdict_ar'], prefix='الخوئي: ')
+    if khoei: chips += ui.verdict_chip(khoei['verdict'], prefix='الخوئي: ')
     chips += ui.tabaqah_chip(n['tabaqah'])
     pills = ''
     if n['kunya']: pills += ui.pill("الكنية: " + n['kunya'].split(chr(10))[0][:42])
@@ -183,11 +183,12 @@ def render_profile(d_id):
         if ev['aggregate']: body += f"<b>جمع التقويم:</b> {ev['aggregate']}<br>"
         if ev['jarh_tadil']: body += ui.quote(ev['jarh_tadil'])
         st.markdown(ui.card(f"<b>📊 تقويم دراية النور</b><br>{body}"), unsafe_allow_html=True)
-    if mufid:
-        body = f"<b>الحكم:</b> {mufid['verdict_ar']}<br>"
-        if mufid['text']: body += ui.quote(mufid['text'][:600])
-        st.markdown(ui.card(f"<b>📗 الخوئي (المفيد من معجم رجال الحديث)</b><br>{body}"), unsafe_allow_html=True)
-    if not n['evals'] and not mufid and not n['is_masum']:
+    if khoei:
+        body = f"<b>الحكم:</b> {khoei['verdict']}<br>"
+        if khoei['quote']: body += ui.quote(khoei['quote'])
+        st.markdown(ui.card(f"<b>📗 تقويم السيد الخوئي (المفيد من معجم رجال الحديث)</b><br>{body}"),
+                    unsafe_allow_html=True)
+    if not n['evals'] and not khoei and not n['is_masum']:
         st.caption("لا يوجد تقويم في دراية النور ولا في المفيد لهذا الراوي.")
 
     tabs = st.tabs(["🧑‍🏫 الشيوخ والتلاميذ", "🕸️ شبكة الرواية", "📈 الخطّ الزمني", "📚 في الكتب", "📛 الأسماء والألقاب"])
@@ -218,10 +219,6 @@ def render_profile(d_id):
             shown = True
             with st.expander(f"{db.BOOK_TITLES.get(b['book_id'], b['book_id'])} — ص{b['page'] or '؟'}"):
                 st.markdown(ui.quote(b['text'] or '—'), unsafe_allow_html=True)
-        if mufid and mufid['text']:
-            shown = True
-            with st.expander("المفيد من معجم رجال الحديث (الخوئي)"):
-                st.markdown(ui.quote(mufid['text']), unsafe_allow_html=True)
         if not shown: st.caption("لا توجد ترجمة مستخرجة في الكتب لهذا الراوي.")
     with tabs[4]:
         st.markdown(" · ".join(n['aliases']) if n['aliases'] else "—")
@@ -290,6 +287,7 @@ def page_home():
         return
     st.markdown(ui.statband([
         (f"{s['narrators']:,}", "راوياً"), (f"{s['evals']:,}", "تقويم دراية النور"),
+        (f"{s.get('khoei', 0):,}", "تقويم السيد الخوئي"),
         (f"{s['tabaqah']:,}", "راوياً معلوم الطبقة"),
         (f"{s['chains']:,}", "سنداً"), (f"{s['entries']:,}", "ترجمة من {} كتب".format(s['books'])),
     ]), unsafe_allow_html=True)
@@ -343,7 +341,8 @@ def page_books():
                    'ibn_dawud': 'ابن داود الحلي', 'ibn_ghadairi': 'ابن الغضائري', 'barqi': 'البرقي',
                    'alf_rajul': 'السيد غيث شبر', 'mujam_khoei': 'السيد الخوئي (ت1413)',
                    'wafi_asaneed': 'السيد غيث شبر',
-                   'qabasat': 'الشيخ مسلم الداوري'}
+                   'qabasat': 'الشيخ مسلم الداوري',
+                   'mufid_mujam': 'الشيخ محمد الجواهري'}
         for i, s in enumerate(stats):
             with cols[i % 3]:
                 pct = round(100 * s['matched'] / s['total']) if s['total'] else 0
@@ -487,7 +486,7 @@ with st.sidebar:
     st.markdown("## 📜 موسوعة الرجال")
     s = db.global_stats()
     st.caption(f"{s['narrators']:,} راوٍ · {s['books']} كتب · {s['chains']:,} سند\n\n"
-               f"التقويم: {s['evals']:,} راوياً (دراية النور)\n\n"
+               f"التقويم: {s['evals']:,} (دراية النور) + {s.get('khoei', 0):,} (السيد الخوئي)\n\n"
                f"الطبقات: {s['tabaqah']:,} راوياً")
     st.divider()
     st.caption("المصادر: دراية النور ٣ (CRCIS) · كتب الرجال العشرة · ألف رجل")
