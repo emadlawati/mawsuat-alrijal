@@ -244,8 +244,8 @@ def render_network(d_id):
     for t, s, cnt in edges: g.edge(t, s)
     st.graphviz_chart(g, use_container_width=True)
     with st.expander("عرض البيانات كقائمة (لمتصفحي الشاشة)"):
-        teachers = [(n,d) for n,(_,r) in nodes.items() if r=='teacher']
-        students = [(n,d) for n,(_,r) in nodes.items() if r=='student']
+        teachers = [(n,name) for n,(name,r) in nodes.items() if r=='teacher']
+        students = [(n,name) for n,(name,r) in nodes.items() if r=='student']
         if teachers:
             st.caption(f"الشيوخ ({len(teachers)}):")
             st.markdown(' · '.join(d[:28] for _,d in teachers))
