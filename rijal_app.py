@@ -93,12 +93,11 @@ def compute_grade(members):
     return (g, col, why)
 
 def narrator_brief(d_id):
-    """(name, verdict, is_masum, tabaqa) with caching via db maps."""
-    n = db.narrator(d_id)
-    if not n: return None
-    v = n['evals'][0]['verdict'] if n['evals'] else None
-    t = n['tabaqah']['tabaqa'] if n['tabaqah'] else None
-    return (n['standard_name'], v, bool(n['is_masum']), t)
+    """(name, verdict, is_masum, tabaqa) from cached maps — light enough for per-node stepper use."""
+    bm = db.brief_map().get(d_id)
+    if not bm: return None
+    name, masum = bm
+    return (name, db.verdict_map().get(d_id), masum, db.tab_map().get(d_id))
 
 def render_stepper(levels, link_flags=None, chain_counts=None):
     """levels: [[{'d_id','name'}...]] top=author side, bottom=Imam side. Returns members for grading."""
@@ -148,6 +147,8 @@ def render_profile(d_id):
     n = db.narrator(d_id)
     if not n:
         st.warning("لم يُعثر على الراوي."); return
+    if st.button("↩ رجوع للنتائج", key=f"back_{d_id}"):
+        ss['d_id'] = None; st.rerun()
     khoei = db.khoei_eval(d_id)
     flag = db.eval_flag(d_id)
 
@@ -278,6 +279,16 @@ def page_home():
     st.markdown("<div class='r-hero'><h1>📜 موسوعة الرجال</h1>"
                 "<p>قاعدة بيانات رواة الحديث عند الإمامية — التقويم، الطبقات، الكتب، وتحليل الأسانيد</p></div>",
                 unsafe_allow_html=True)
+    st.markdown(
+        "<div class='r-intro'>"
+        f"<div>🔎 تصفّح حال <b>{s['narrators']:,}</b> راوٍ مع جميع آراء علماء الرجال فيه</div>"
+        "<div>📚 تصفّح كتب الرجال كاملةً مع خاصيّة البحث في نصوصها</div>"
+        "<div>🔗 تحليل الأسانيد والحكم عليها بأضعف رواتها</div>"
+        "</div>", unsafe_allow_html=True)
+    st.markdown(
+        "<div class='r-verify'>⚠️ تنبيه: هذه الموسوعة أداة بحثية تساعد في تقييم الأسانيد ومعرفة حال الرواة. "
+        "يرجى دائماً الرجوع إلى المصدر الأصلي والتحقق منه لاحتمالية وقوع الخطأ.</div>",
+        unsafe_allow_html=True)
     q = st.text_input("ابحث عن راوٍ بالاسم أو الكنية أو اللقب", key="home_q",
                       placeholder="مثال: زرارة بن أعين · محمد بن يعقوب الكليني · أبو بصير")
     if q:
@@ -295,7 +306,7 @@ def page_home():
     c1, c2, c3 = st.columns(3)
     feats = [(c1, "🔎 مكتبة الرواة", "ترجمة وافية لكل راوٍ: تقويمه، وطبقته، وشيوخه وتلاميذه، وشبكة روايته، وخطّه الزمني.", NAV[1]),
              (c2, "📚 كتب الرجال", "عشرة كتب رجالية كاملة: تصفّح تراجمها، واقرأها صفحةً صفحة، وابحث في نصوصها.", NAV[2]),
-             (c3, "🔗 محلّل الأسانيد", "حلّل أي سند تنسخه نصاً، أو تصفّح ١٨٣ ألف سند مستخرج، مع الحكم على السند بأضعف رواته.", NAV[3])]
+             (c3, "🔗 محلّل الأسانيد", "حلّل أي سند تنسخه نصاً: يُحدَّد كل راوٍ فيه ويُحكم على السند بأضعف رواته.", NAV[3])]
     for col, title, desc, target in feats:
         with col:
             st.markdown(ui.tile(title, '', desc), unsafe_allow_html=True)
@@ -427,57 +438,27 @@ EXAMPLES = [
 ]
 def page_isnad():
     st.subheader("🔗 محلّل الأسانيد")
-    t1, t2 = st.tabs(["✍️ تحليل سند منسوخ", "📋 تصفّح الأسانيد"])
-    with t1:
-        st.caption("انسخ السند كما ورد في الكتاب، وسيُحدَّد كل راوٍ فيه ويُحكم على السند بأضعف رواته.")
-        ec = st.columns(len(EXAMPLES))
-        for i, ex in enumerate(EXAMPLES):
-            if ec[i].button(f"مثال {i+1}", key=f"ex{i}", use_container_width=True):
-                ss['is_txt'] = ex; ss['is_res'] = None; st.rerun()
-        txt = st.text_area("نصّ السند", key="is_txt", height=110,
-                           placeholder="محمد بن يعقوب عن علي بن إبراهيم عن أبيه …")
-        if st.button("🔍 حلّل السند", type="primary", use_container_width=True) and txt.strip():
-            with st.spinner("جارٍ تحليل السند…"):
-                ss['is_res'] = db.resolve_isnad(txt)
-        if ss.get('is_res'):
-            res = ss['is_res']
-            levels = [[{'d_id': r['d_id'], 'name': r['name'], 'note': r.get('note')}] for r in res]
-            flags = [bool(res[i+1]['link_ok']) for i in range(len(res) - 1)]
-            cc_list = [res[i+1].get('chain_count', 0) for i in range(len(res) - 1)]
-            render_stepper(levels, flags, chain_counts=cc_list)
-            with st.expander("احتمالات أخرى لتحديد الرواة (إن أخطأ التحديد)"):
-                for r in res:
-                    alts = " · ".join(n for _, n in (r['alts'] or [])[:4])
-                    st.markdown(f"**{r['segment']}** ← {r['name']}  <span class='r-sub'>(احتمالات أخرى: {alts})</span>",
-                                unsafe_allow_html=True)
-    with t2:
-        c1, c2, c3 = st.columns([2, 2, 1])
-        books = ['(كل الكتب)'] + db.chain_books()
-        bk = c1.selectbox("الكتاب", books, key="ch_book")
-        nq = c2.text_input("ابحث عن راوٍ في الأسانيد", key="ch_nar", placeholder="اكتب اسم الراوي ثم اختر")
-        masum = c3.checkbox("ينتهي بمعصوم", value=True, key="ch_masum")
-        nar_did = None
-        if nq:
-            hits = db.search_narrators(nq, limit=8)
-            if hits:
-                pick = st.selectbox("اختر الراوي", hits, format_func=lambda x: x[1], key="ch_pick_nar")
-                nar_did = pick[0]
-        chains = db.search_chains(narrator_did=nar_did, masum_only=masum, limit=300)
-        if not bk.startswith('('): chains = [c for c in chains if c['book_name'] == bk]
-        chains = chains[:80]
-        st.caption(f"{len(chains)} سند")
-        opts = {f"#{c['chain_id']} — {c['book_name']} ص{c['start_page']} ({c['narrator_count']} راوٍ)": c['chain_id'] for c in chains}
-        if opts:
-            sel = st.selectbox("اختر سنداً", list(opts), key="ch_pick")
-            ss['chain_id'] = opts[sel]
-        if ss['chain_id']:
-            ch = db.chain_detail(ss['chain_id'])
-            if ch:
-                st.markdown(f"<span class='r-sub'>{ch['book_name']} — ج{ch.get('vol') or ''} "
-                            f"ص{ch.get('start_page') or ''} · {ch['narrator_count']} راوٍ · {ch['level_count']} طبقة</span>",
+    st.caption("انسخ السند كما ورد في الكتاب، وسيُحدَّد كل راوٍ فيه ويُحكم على السند بأضعف رواته.")
+    ec = st.columns(len(EXAMPLES))
+    for i, ex in enumerate(EXAMPLES):
+        if ec[i].button(f"مثال {i+1}", key=f"ex{i}", use_container_width=True):
+            ss['is_txt'] = ex; ss['is_res'] = None; st.rerun()
+    txt = st.text_area("نصّ السند", key="is_txt", height=110,
+                       placeholder="محمد بن يعقوب عن علي بن إبراهيم عن أبيه …")
+    if st.button("🔍 حلّل السند", type="primary", use_container_width=True) and txt.strip():
+        with st.spinner("جارٍ تحليل السند…"):
+            ss['is_res'] = db.resolve_isnad(txt)
+    if ss.get('is_res'):
+        res = ss['is_res']
+        levels = [[{'d_id': r['d_id'], 'name': r['name'], 'note': r.get('note')}] for r in res]
+        flags = [bool(res[i+1]['link_ok']) for i in range(len(res) - 1)]
+        cc_list = [res[i+1].get('chain_count', 0) for i in range(len(res) - 1)]
+        render_stepper(levels, flags, chain_counts=cc_list)
+        with st.expander("احتمالات أخرى لتحديد الرواة (إن أخطأ التحديد)"):
+            for r in res:
+                alts = " · ".join(n for _, n in (r['alts'] or [])[:4])
+                st.markdown(f"**{r['segment']}** ← {r['name']}  <span class='r-sub'>(احتمالات أخرى: {alts})</span>",
                             unsafe_allow_html=True)
-                flags = db.chain_links(ch['levels'])
-                render_stepper(ch['levels'], flags)
 
 # ---------------------------------------------------------------- nav + sidebar
 nav = st.segmented_control("التنقل", NAV, key="nav", label_visibility="collapsed") or NAV[0]

@@ -57,14 +57,14 @@ def flagnote(text):
     return f"<div class='r-flagnote'>⚠ {text}</div>"
 
 def narrator_row(d_id, name, verdict=None, tab=None, num=None):
-    """Search/browse result row — opens the narrator profile in a NEW browser tab (?n= deep link)."""
+    """Search/browse result row — opens the narrator profile in-app via the ?n= deep link."""
     em, lab = '', ''
     if verdict:
         l, c, e = db.reliability(verdict); em = e; lab = l
     meta = ' · '.join(x for x in ([lab] if lab else []) + ([f'ط{tab}'] if tab else []))
     n = f"{num}. " if num else ''
-    return (f"<a class='r-row' href='?n={d_id}' target='_blank' rel='noopener'>"
-            f"<span class='nm2'>{n}{em} {name}</span><span class='meta'>{meta} ↗</span></a>")
+    return (f"<a class='r-row' href='?n={d_id}'>"
+            f"<span class='nm2'>{n}{em} {name}</span><span class='meta'>{meta}</span></a>")
 
 # ---------------- isnad stepper ----------------
 def isnad_node(name, d_id=None, verdict=None, tab=None, is_imam=False, note=None):
