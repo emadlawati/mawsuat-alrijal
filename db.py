@@ -358,9 +358,10 @@ IMAM_KUNYA = {
     'امير المؤمنين':'D02847','علي بن ابي طالب':'D02847','ابي الحسن علي':'D02847',
     'زين العابدين':'D02928','السجاد':'D02928','علي بن الحسين':'D02928',
 }
-_REL_REF = re.compile(r'^(?:عن\s+)?(?:ابيه|أبيه|ابوه|أبوه|والده|عمه|عَمِّه|أخيه|أَخِيه|اخیه)$')
+_REL_REF = re.compile(r'^(?:عن\s+)?(?:ابيه|أبيه|ابوه|أبوه|والده|عمه|عَمِّه|أخيه|أَخِيه|اخیه|جده|جدّه|جده)$')
 _REL_KIN = {'ابيه':'اب','أبيه':'اب','ابوه':'اب','أبوه':'اب','والده':'اب',
-            'عمه':'عم','عَمِّه':'عم','أخيه':'اخ','أَخِيه':'اخ','اخیه':'اخ'}
+            'عمه':'عم','عَمِّه':'عم','أخيه':'اخ','أَخِيه':'اخ','اخیه':'اخ',
+            'جده':'جد','جدّه':'جد'}   # grandfather ≈ father-of-prev (prev is already «أبيه»)
 
 def _name_of(d, c):
     r = c.execute("SELECT standard_name FROM narrators WHERE d_id=?", (d,)).fetchone()
@@ -379,18 +380,19 @@ def _rel_cands(kin, prev, c):
     """Resolve a relative reference (أبيه/عمه/أخيه) to candidate narrators via the PREVIOUS narrator's
     teacher-bigrams, filtered by nasab. Returns (display_segment, note, [(d_id, name)])."""
     if not prev:
-        seg = {'اب': 'أبيه', 'عم': 'عمه', 'اخ': 'أخيه'}.get(kin, 'أبيه')
+        seg = {'اب': 'أبيه', 'عم': 'عمه', 'اخ': 'أخيه', 'جد': 'جده'}.get(kin, 'أبيه')
         return seg, None, [(None, seg)]
     teach = _teacher_students().get(prev, [])
-    if kin == 'اب':
+    if kin in ('اب', 'جد'):   # father, or grandfather (= father of the prev «أبيه»)
+        seg = 'جده' if kin == 'جد' else 'أبيه'
         _, ftok = _nasab_toks(prev, c)
         info = [(t, _name_of(t, c)) for t, _ in teach[:10]]
         if ftok:
             matched = [(d, nm) for d, nm in info if norm(nm).split() and norm(nm).split()[0].startswith(ftok[:4])]
-            cl = matched[:6] or info[:6] or [(None, 'أبيه')]
+            cl = matched[:6] or info[:6] or [(None, seg)]
         else:
-            cl = info[:6] or [(None, 'أبيه')]
-        return 'أبيه', None, cl
+            cl = info[:6] or [(None, seg)]
+        return seg, None, cl
     if kin == 'عم':
         info = [(t, _name_of(t, c)) for t, _ in teach[:8]]
         cl = info or [(None, 'عمه')]
@@ -407,13 +409,79 @@ def _rel_cands(kin, prev, c):
         cl = info or [(None, 'أخيه')]
     return 'أخيه', ('(أخيه — تقدير)' if cl and cl[0][0] else None), cl
 
-def _score_cand(d, name, ns, prev, prev2, bigrams, trigrams, relset, tabq):
+# ---------- honorific titles & kunyas (isnad robustness) ----------
+_TITLE_RE = re.compile(r'^(?:ال)?(?:شيخ|سيد|علامة|محقق|امام|إمام|حافظ|قاضي|استاذ|أستاذ|مولى|فقيه|حاج|ثقة|شهيد|فاضل)\s+')
+# pious formulae that trail a name and must be ignored for matching (عليه السلام / رحمه الله / …)
+_HONOR = re.compile(
+    r'\s*(?:عليه[م]?\s+الس[لّ]ام|عليها\s+الس[لّ]ام|عليه\s+الص[لّ]اة\s+والس[لّ]ام'
+    r'|ص[لّ]ى\s+ال[لّ]ه\s+عليه(?:\s+و[آا]له)?(?:\s+وس[لّ]م)?'
+    r'|رحمه\s+ال[لّ]ه|رحمة\s+ال[لّ]ه\s+عليه|رضي\s+ال[لّ]ه\s+عنه[م]?'
+    r'|قدس\s+(?:ال[لّ]ه\s+)?سره|قدس\s+روحه|عج[لّ]\s+ال[لّ]ه\s+فرجه|لعنه\s+ال[لّ]ه)')
+# anonymous / mursal links — a real narrator was not named, so do NOT force a match
+_MURSAL = re.compile(
+    r'^(?:بعض\s+(?:أصحابنا|اصحابنا|أصحابه|اصحابه|الأصحاب|الاصحاب|رجاله|من\s+\S+)'
+    r'|رجل|امرأة|بعض\s+من\s+\S+|عمن\s+\S+|من\s+(?:حد[ثّ]ه|ذكره|أخبره|اخبره|رواه))\b')
+
+def _strip_titles(s):
+    out = (s or '').strip()
+    for _ in range(3):
+        nxt = _TITLE_RE.sub('', out).strip()
+        if not nxt or nxt == out: break
+        out = nxt
+    return out or (s or '')
+
+def _clean_seg(s):
+    """Strip pious formulae + leading honorific titles so the bare name can be matched."""
+    s = _HONOR.sub(' ', s or '')
+    return re.sub(r'\s+', ' ', _strip_titles(s)).strip()
+
+def _kunya_key(s):
+    """Normalise a kunya for lookup: أبي/أبا/أبى → أبو (grammatical case), diacritics off."""
+    return re.sub(r'^اب[ايى]\b', 'ابو', norm(s))
+
+@st.cache_resource
+def _kunya_index():
+    """kunya-key -> [(sand_count, d_id, name)] sorted by prominence — resolves «عن أبي بصير» etc."""
+    c = _conn(); idx = {}
+    for d, kn, nm, sc in c.execute(
+            "SELECT d_id, kunya, standard_name, sand_count FROM narrators WHERE kunya IS NOT NULL AND TRIM(kunya)<>''"):
+        for part in re.split(r'\s+-\s+', kn):
+            k = re.sub(r'\([^)]*\)', '', part).strip()        # drop the «(source)» annotations
+            if k:
+                idx.setdefault(_kunya_key(k), []).append((sc or 0, d, nm))
+    for k in idx: idx[k].sort(reverse=True)
+    return idx
+
+@st.cache_resource
+def _kunya_keys():
+    """d_id -> set of its kunya-keys (for the scorer's kunya tier)."""
+    km = {}
+    for k, lst in _kunya_index().items():
+        for _, d, _nm in lst: km.setdefault(d, set()).add(k)
+    return km
+
+def _kunya_holders(kk, limit=5):
+    return [(d, nm) for _, d, nm in _kunya_index().get(kk, [])[:limit]]
+
+@st.cache_resource
+def _masum_names():
+    """normalised (honorific-stripped) full name -> d_id for the 14 maʿṣūmīn, so a mid-chain Imam
+    given by full name («جعفر بن محمد الصادق») resolves directly instead of matching «مولى/صاحب X»."""
+    c = _conn(); m = {}
+    for d, nm in c.execute("SELECT d_id, standard_name FROM narrators WHERE is_masum=1"):
+        k = norm(_clean_seg(nm))
+        if k: m[k] = d
+    return m
+
+def _score_cand(d, name, ns, prev, prev2, bigrams, trigrams, relset, tabq, kk=None, kkeys=None):
     """Score one candidate for a segment. Priority (unchanged weights): name-match (×1000s) ≫
     ṭabaqah plausibility > documented network > chain n-gram frequency. Name always dominates."""
     if not d:
         return 0
-    if norm(name) == ns: total = 4000
-    elif ns in norm(name) or norm(name)[:8] == ns[:8]: total = 3000
+    nn = norm(name)
+    if nn == ns: total = 4000
+    elif kk and kkeys and kk in kkeys.get(d, ()): total = 3600   # the segment IS this narrator's kunya
+    elif ns in nn or nn[:8] == ns[:8]: total = 3000
     else: total = 2000
     if prev and prev in tabq and d in tabq:               # 2. ṭabaqah: teacher not implausibly younger
         p_high = tabq[prev][2]; d_low = tabq[d][1]
@@ -435,21 +503,28 @@ def resolve_isnad(text, topk=6):
     Handles Imam kunyas and relative references (أبيه/عمه/أخيه). An unresolved segment breaks the
     chain context, so no false adjacency is asserted across the gap."""
     segs = split_isnad(text)
-    nsegs = [norm(s) for s in segs]
+    clean = [_clean_seg(s) for s in segs]             # drop pious formulae + titles for matching
+    nsegs = [norm(s) for s in clean]
     c = _conn()
     bigrams = _chain_bigrams(); trigrams = _chain_trigrams()
-    relset = _relset(); tabq = _tabaqah_map()
+    relset = _relset(); tabq = _tabaqah_map(); KK = _kunya_keys()
     # Prev-independent candidates per segment; relative refs are expanded per-path inside the beam.
-    raw = []
+    raw = []; seg_kk = []
     for i, s in enumerate(segs):
-        ns = nsegs[i]
-        if IMAM_KUNYA.get(ns):
-            d = IMAM_KUNYA[ns]; raw.append(('IMAM', [(d, _name_of(d, c))]))
+        ns = nsegs[i]; kk = None
+        if _MURSAL.match(ns):                         # anonymous link — don't force a match
+            raw.append(('MURSAL', None))
+        elif IMAM_KUNYA.get(ns) or _masum_names().get(ns):   # Imam by kunya OR by full name
+            d = IMAM_KUNYA.get(ns) or _masum_names()[ns]; raw.append(('IMAM', [(d, _name_of(d, c))]))
         elif _REL_REF.match(ns) and i > 0:
             raw.append(('REL', _REL_KIN.get(ns, 'اب')))
         else:
-            hits = search_narrators(s, limit=topk)
-            raw.append(('NORM', hits if hits else [(None, s)]))
+            kk_try = _kunya_key(ns); khold = _kunya_holders(kk_try)
+            if khold: kk = kk_try                     # segment is a known kunya (عن أبي بصير)
+            hits = search_narrators(clean[i], limit=topk)
+            merged = khold + [h for h in hits if h[0] not in {x[0] for x in khold}]
+            raw.append(('NORM', merged if merged else [(None, s)]))
+        seg_kk.append(kk)
     # Beam decode. Each beam entry: (cumulative_score, chosen_list, prev_d, prev2_d).
     beam = [(0, [], None, None)]
     for i in range(len(raw)):
@@ -458,10 +533,12 @@ def resolve_isnad(text, topk=6):
         for cum, chosen, prev, prev2 in beam:
             if typ == 'REL':
                 seg_disp, note, clist = _rel_cands(payload, prev, c)
+            elif typ == 'MURSAL':
+                seg_disp, note, clist = segs[i], 'مُرسَل — راوٍ غير مُسمّى', [(None, segs[i])]
             else:
                 seg_disp, note, clist = segs[i], None, payload
             ns = nsegs[i]
-            scored = sorted(((d, nm, _score_cand(d, nm, ns, prev, prev2, bigrams, trigrams, relset, tabq))
+            scored = sorted(((d, nm, _score_cand(d, nm, ns, prev, prev2, bigrams, trigrams, relset, tabq, seg_kk[i], KK))
                              for d, nm in clist), key=lambda x: -x[2])
             for d, nm, _sc in scored[:_BEAM]:
                 alts = [(dd, nn) for dd, nn, _ in scored if dd and dd != d][:6]
