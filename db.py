@@ -263,7 +263,7 @@ def split_isnad(text):
         if ' و ' in p:
             subs = re.split(r'\s+و\s+(?=[ء-ي])', p)
             subs = [_CLEAN.sub('', s).strip(' .،:') for s in subs]
-            all_ben = all(bool(re.search(r'بن', s)) for s in subs if s)
+            all_ben = all(bool(re.search(r'بن', s)) for s in subs if s)
             if all_ben and len(subs) > 1:
                 for s in subs:
                     if s and re.search(r'[ء-ي]', s) and len(s) >= 2:
@@ -272,7 +272,7 @@ def split_isnad(text):
         p = _CLEAN.sub('', p).strip(' .،:')
         if p and re.search(r'[ء-ي]', p) and len(p) >= 2:
             segs.append(p)
-    return segs
+    return [g for g in (re.sub(r'\s+(?:جميعا|جميعاً|جميعهم|كلاهما|كليهما|معا|معاً)\s*$', '', s).strip(' .،:') for s in segs) if g and re.search(r'[ء-ي]', g) and len(g) >= 2]
 
 @st.cache_resource
 def _relset():
