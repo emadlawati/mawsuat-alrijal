@@ -6,14 +6,14 @@ import streamlit as st
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _CORE = os.path.join(os.path.dirname(_HERE), 'rijal_core.db')   # local development (live data)
-_PUBLIC = os.path.join(_HERE, 'rijal_public_v14.db')           # versioned cache → re-downloads on bump
+_PUBLIC = os.path.join(_HERE, 'rijal_public_v15.db')           # versioned cache → re-downloads on bump
 # Deployed app downloads the DB from a GitHub Release asset on first boot.
-# v1.4 = al-Mufid entries re-parsed + exact-name matching (fixes الصدوق=مجهول and the magnet d_ids);
-# v1.3 = isnad beam-search + chain n-grams; v1.2 = fallback during upload.
+# v1.5 = al-Mufid matched by the order-aware LLM matcher (5,101 entries / 2,971 Khoei verdicts at ≥0.90);
+# v1.4 = exact-name matching; v1.3 = isnad beam-search + chain n-grams.
 DB_URLS = [
+    "https://github.com/emadlawati/mawsuat-alrijal/releases/download/v1.5/rijal_public.db",
     "https://github.com/emadlawati/mawsuat-alrijal/releases/download/v1.4/rijal_public.db",
     "https://github.com/emadlawati/mawsuat-alrijal/releases/download/v1.3/rijal_public.db",
-    "https://github.com/emadlawati/mawsuat-alrijal/releases/download/v1.2/rijal_public.db",
 ]
 
 def _ensure_db():
