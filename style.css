@@ -140,6 +140,10 @@ a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visib
 .r-tile .t { font-weight: 800; font-size: 1.02rem; color: var(--ink); }
 .r-tile .a { color: var(--ink-soft); font-size: .8rem; }
 .r-tile .m { color: var(--accent); font-size: .78rem; font-weight: 700; margin-top: 4px; }
+.r-badge { display: inline-block; background: #fff3e0; color: #c25e00; border-radius: 6px;
+  padding: 1px 7px; font-size: .72rem; font-weight: 700; }
+/* ---- studies section ---- */
+.r-studygroup { font-weight: 800; color: var(--gold); margin: 18px 0 2px; font-size: 1.05rem; }
 
 /* ---- buttons (global restyle) ---- */
 .stButton button {

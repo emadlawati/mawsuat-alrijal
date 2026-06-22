@@ -52,10 +52,10 @@ _inject_pwa()
 
 ss = st.session_state
 for k, v in [('d_id', None), ('cur_book', None), ('chain_id', None), ('lib_page', 0),
-             ('bk_page', None), ('is_res', None)]:
+             ('bk_page', None), ('is_res', None), ('study', None)]:
     ss.setdefault(k, v)
 
-NAV = ["🏠 الرئيسية", "🔎 الرواة", "📚 الكتب", "🔗 الأسانيد"]
+NAV = ["🏠 الرئيسية", "🔎 الرواة", "📚 الكتب", "🔗 الأسانيد", "📊 الدراسات"]
 ss.setdefault('nav', NAV[0])
 
 # ---- deep links (must run before the nav widget) ----
@@ -460,6 +460,102 @@ def page_isnad():
                 st.markdown(f"**{r['segment']}** ← {r['name']}  <span class='r-sub'>(احتمالات أخرى: {alts})</span>",
                             unsafe_allow_html=True)
 
+# ---------------------------------------------------------------- studies
+_STUDY_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'studies')
+_STUDY_FONTS = ('<link rel="preconnect" href="https://fonts.googleapis.com">'
+                '<link href="https://fonts.googleapis.com/css2?family=Amiri&family=Cairo:wght@400;700;800&display=swap" rel="stylesheet">')
+STUDY_GROUPS = [
+    ("① تحليل الأسانيد والعلل", [
+        {"file": "defects_report", "title": "كشف العلل في الأسانيد",
+         "desc": "السقط والتصحيف وتعارض الطبقات، مستخرَجةً من الأسانيد."},
+        {"file": "defect_triage", "title": "فرز العلل وتصنيفها",
+         "desc": "تصنيف مرشّحات السقط: مُرسَل، تعليق، مشيخة، أم سقطٌ حقيقيّ — مع أرجح واسطة."},
+        {"file": "tabaqah_calibration", "title": "معايرة الطبقات",
+         "desc": "أيّ روابط الشيخ والتلميذ يثبت تصنيفُها وأيّها يتغيّر بدقّة الطبقة المستنبَطة."},
+        {"file": "chain_grade_summary", "title": "تصنيف الأسانيد بأضعف رواتها",
+         "desc": "توزيع الأسانيد على قاعدة «السند بأضعف رواته» — عامًّا وبحسب الكتاب."},
+    ]),
+    ("② المشيخة وطرق الكتب", [
+        {"file": "mashyakha_report", "title": "مشيخة الكتب وطرقها",
+         "desc": "الطرق التي يصل بها المصنّفون إلى أصحاب الأصول والكتب."},
+        {"file": "book_source_atlas", "title": "أطلس مصادر الكتب",
+         "desc": "تفصيل مصادر الكتب الأربعة وطرق نقلها وأنماط الإجازة."},
+        {"file": "nuzul_atlas", "title": "أطلس النزول",
+         "desc": "روايةُ الراوي عن قرينه قرينةٌ على النقل من كتابٍ مكتوب."},
+        {"file": "book_transmission_fingerprints", "title": "بصمات نقل الكتب",
+         "desc": "السلاسل المتكرّرة الدالّة على مصدرٍ مكتوب — معروفٌ ومُستنبَط."},
+        {"file": "chains_2_bigrams", "title": "تكرار سلاسل المشايخ",
+         "desc": "أكثر سلاسل الرواة تكرارًا — بصماتُ النقل (ثنائية وثلاثية ورباعية).",
+         "variants": [("ثنائية", "chains_2_bigrams"), ("ثلاثية", "chains_3_trigrams_with_dirayah"),
+                      ("رباعية", "chains_4_fourgrams_with_dirayah")]},
+    ]),
+    ("③ الرواة والشبكة", [
+        {"file": "implicit_tawthiq_final", "title": "التوثيق الضمنيّ — إكثار الأجلّاء",
+         "desc": "رواةٌ يُكثر الأجلّاء والثقات الرواية المباشرة عنهم — قرينةُ اعتماد."},
+        {"file": "contradiction_narrators", "title": "رواة التعارض",
+         "desc": "تعارض المنع الرجاليّ مع إكثار الأجلّاء — يُبرَز ولا يُحسَم."},
+        {"file": "practical_impact_ranking", "title": "الأثر العمليّ والاختناق",
+         "desc": "أكثر الرواة تأثيرًا في الأسانيد الفقهيّة، ونقاطُ الاختناق التي لا بديل لها."},
+        {"file": "identity_audit", "title": "تدقيق الهويّة",
+         "desc": "مرشّحات الاتّحاد والتصحيف، وتمييزُ المشترَك (ما لا يُدمَج)."},
+        {"file": "madhhab_network", "title": "شبكة المذاهب",
+         "desc": "مقدار رواية الإماميّة عمّن سواهم، وأكثرُ مَن اعتُمد عليه منهم."},
+        {"file": "compiler_preferences", "title": "تفضيلات المصنّفين",
+         "desc": "مَن يُكثر عنهم الكلينيّ والصدوق والطوسيّ — وتوزيعُ تقويمهم."},
+        {"file": "topic_isnad_correlation", "title": "ارتباط الموضوع بالسند",
+         "desc": "توزيع الرواة وتقويمهم بحسب الكتاب الفقهيّ.", "badge": "تقريبيّ — مستوى المجلّد"},
+    ]),
+    ("④ دراسة موسّعة", [
+        {"file": "study_methodology", "title": "دراسة بياناتية موسّعة في منهجية تحليل الأسانيد",
+         "desc": "العوائل العلمية، علاماتُ النقل من الكتب، التوثيق الضمنيّ، بصماتُ المخطوطات، والإسقاط الممنهج."},
+    ]),
+]
+_STUDY_BY_FILE = {it['file']: it for _, items in STUDY_GROUPS for it in items}
+
+def _study_html(file):
+    try:
+        html = open(os.path.join(_STUDY_DIR, f'{file}.html'), encoding='utf-8').read()
+    except OSError:
+        return None
+    if 'fonts.googleapis' not in html:
+        html = html.replace('</head>', _STUDY_FONTS + '</head>', 1)
+    return html
+
+def page_studies():
+    st.subheader("📊 الدراسات")
+    st.markdown(
+        "<div class='r-verify'>هذه دراساتٌ بحثيّة تجريبيّة مبنيّةٌ على تحليل الأسانيد، للاستئناس والاستكشاف "
+        "لا للحكم النهائيّ — ويُرجى دائمًا الرجوع إلى المصدر الأصليّ والتحقّق منه.</div>",
+        unsafe_allow_html=True)
+    sel = ss.get('study')
+    if sel and sel in _STUDY_BY_FILE:
+        it = _STUDY_BY_FILE[sel]
+        if st.button("↩ رجوع لقائمة الدراسات", key="study_back"):
+            ss['study'] = None; st.rerun()
+        st.markdown(f"### {it['title']}")
+        file = it['file']
+        if it.get('variants'):
+            labels = [lbl for lbl, _ in it['variants']]
+            pick = st.radio("طول السلسلة", labels, horizontal=True, key="study_variant",
+                            label_visibility="collapsed")
+            file = dict(it['variants'])[pick]
+        html = _study_html(file)
+        if not html:
+            st.warning("تعذّر تحميل هذه الدراسة."); return
+        st.download_button("⬇ تحميل التقرير (HTML)", data=html.encode('utf-8'),
+                           file_name=f"{file}.html", mime="text/html", key="study_dl")
+        _components.html(html, height=900, scrolling=True)
+        return
+    for group, items in STUDY_GROUPS:
+        st.markdown(f"<div class='r-studygroup'>{group}</div>", unsafe_allow_html=True)
+        cols = st.columns(2)
+        for i, it in enumerate(items):
+            with cols[i % 2]:
+                badge = f" · <span class='r-badge'>{it['badge']}</span>" if it.get('badge') else ''
+                st.markdown(ui.tile(it['title'], '', it['desc'] + badge), unsafe_allow_html=True)
+                if st.button("فتح الدراسة", key=f"open_{it['file']}", use_container_width=True):
+                    ss['study'] = it['file']; st.rerun()
+
 # ---------------------------------------------------------------- nav + sidebar
 nav = st.segmented_control("التنقل", NAV, key="nav", label_visibility="collapsed") or NAV[0]
 
@@ -472,4 +568,5 @@ with st.sidebar:
     st.divider()
     st.caption("المصادر: دراية النور ٣ (CRCIS) · كتب الرجال العشرة · ألف رجل")
 
-{NAV[0]: page_home, NAV[1]: page_library, NAV[2]: page_books, NAV[3]: page_isnad}[nav]()
+{NAV[0]: page_home, NAV[1]: page_library, NAV[2]: page_books, NAV[3]: page_isnad,
+ NAV[4]: page_studies}[nav]()

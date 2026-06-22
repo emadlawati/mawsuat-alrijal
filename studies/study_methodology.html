@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>دراسة بياناتية موسّعة في منهجية تحليل الأسانيد</title>
+<style>
+:root {
+  --bg: #faf7f1; --card: #fffdf9; --line: #e7dfd0;
+  --ink: #2b2317; --soft: #6b5d4a; --gold: #b8860b;
+  --accent: #175d4f; --accent-soft: #e8f1ee;
+  --thiqa: #2e7d32; --daif: #c62828; --majhul: #8d8d8d;
+  --mukhtalaf: #ef6c00; --hasan: #689f38; --muwathaq: #00897b;
+  --warn: #fff3e0;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Cairo', 'Amiri', serif; background: var(--bg); color: var(--ink);
+  line-height: 1.9; font-size: 1.05rem; max-width: 960px; margin: 0 auto; padding: 30px 24px 100px;
+}
+.hero { text-align: center; padding: 50px 10px 30px; border-bottom: 4px solid var(--gold); margin-bottom: 40px; }
+.hero h1 { font-size: 2rem; font-weight: 800; color: var(--accent); margin-bottom: 8px; }
+.hero .sub { color: var(--soft); font-size: 1rem; line-height: 1.8; }
+.hero .date { color: var(--gold); font-size: .9rem; margin-top: 12px; font-weight: 700; }
+h2 { font-size: 1.45rem; font-weight: 800; color: var(--accent); margin: 56px 0 18px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+h3 { font-size: 1.15rem; font-weight: 700; color: var(--ink); margin: 32px 0 12px; }
+p { margin: 12px 0; }
+.card {
+  background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+  padding: 22px 26px; margin: 18px 0; box-shadow: 0 1px 4px rgba(70,55,30,.06);
+}
+.card.gold { border-right: 5px solid var(--gold); background: #fbf7ec; }
+.card.green { border-right: 5px solid var(--thiqa); background: #f8fdf8; }
+.card.red { border-right: 5px solid var(--daif); background: #fef9f9; }
+.card.blue { border-right: 5px solid var(--accent); background: var(--accent-soft); }
+.card.warn { border-right: 5px solid var(--mukhtalaf); background: var(--warn); }
+.quote {
+  font-family: 'Amiri', serif; font-size: 1.1rem; line-height: 2.1;
+  background: var(--accent-soft); border-radius: 10px; border-right: 3px solid var(--accent);
+  padding: 14px 20px; margin: 14px 0; color: var(--ink);
+}
+.quote .author { color: var(--gold); font-weight: 700; font-size: .95rem; }
+table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: .93rem; }
+th, td { padding: 10px 14px; text-align: right; border-bottom: 1px solid var(--line); }
+th { background: var(--accent-soft); color: var(--accent); font-weight: 700; font-size: .84rem; white-space: nowrap; }
+tr:hover { background: #fdfcf7; }
+.tag { display: inline-block; padding: 3px 12px; border-radius: 14px; font-size: .78rem; font-weight: 700; margin: 0 3px; }
+.tag.thiqa { background: #e8f5e9; color: var(--thiqa); }
+.tag.daif { background: #ffebee; color: var(--daif); }
+.tag.majhul { background: #f5f5f5; color: var(--majhul); }
+.tag.gold { background: #fdf3d6; color: var(--gold); }
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin: 18px 0; }
+.stat { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; text-align: center; }
+.stat .num { font-size: 1.6rem; font-weight: 800; color: var(--accent); }
+.stat .lbl { font-size: .8rem; color: var(--soft); margin-top: 4px; }
+.discovery { background: linear-gradient(135deg, #fdf3d6, #fef9e7); border: 2px solid var(--gold); border-radius: 14px; padding: 20px 24px; margin: 20px 0; }
+.discovery .dlabel { font-weight: 800; color: var(--gold); font-size: .9rem; margin-bottom: 8px; }
+.discovery h4 { color: var(--accent); font-size: 1.05rem; margin: 8px 0 4px; }
+.toc { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 24px 28px; margin: 24px 0; columns: 2; column-gap: 30px; }
+.toc a { color: var(--accent); text-decoration: none; font-weight: 600; display: block; margin: 3px 0; font-size: .9rem; }
+.toc a:hover { text-decoration: underline; }
+.note-box { background: var(--warn); border: 1px solid var(--mukhtalaf); border-radius: 10px; padding: 14px 18px; margin: 12px 0; font-size: .92rem; }
+.note-box .ntitle { font-weight: 800; color: var(--mukhtalaf); margin-bottom: 4px; }
+ol { margin: 10px 20px; }
+ol li { margin: 6px 0; }
+strong { color: var(--accent); }
+@media (max-width: 700px) { body { font-size: .95rem; padding: 14px 10px; } .toc { columns: 1; } }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>دراسة بياناتية موسّعة في منهجية تحليل الأسانيد</h1>
+  <div class="sub">
+    تطبيقٌ آليٌّ لقرائن الرجال والدراية على قاعدة بيانات تضمّ <strong>183,295 سنداً</strong><br>
+    استخراجُ العوائل العلمية وعلامات النقل من الكتب والتوثيق الضمنيّ وبصمات المخطوطات<br>
+    <em>دراسة مستقلّة قائمة على تحليل الأسانيد</em>
+  </div>
+  <div class="date">جمادى الآخرة ١٤٤٧ هـ — ٢٠٢٦ م</div>
+</div>
+
+<div class="toc">
+  <strong>📑 فهرس الأبحاث:</strong>
+  <a href="#s1">١. نظام الإجازة والعوائل العلمية</a>
+  <a href="#s2">٢. الشواهد التاريخية على الإجازة</a>
+  <a href="#s3">٣. العلامات الـ ١٦ لاكتشاف النقل من الكتب</a>
+  <a href="#s4">٤. الظواهر الرجالية الأربعة</a>
+  <a href="#s5">٥. التوثيق الضمني — المحرّك المصحَّح</a>
+  <a href="#s6">٦. البصمات الكمّية للمخطوطات</a>
+  <a href="#s7">٧. توزيع الطبقات</a>
+  <a href="#s8">٨. الإسقاط الممنهج (isqāt)</a>
+  <a href="#s9">٩. صحة الأسانيد الإجمالية</a>
+  <a href="#s10">١٠. اكتشافات جديدة جوهرية</a>
+  <a href="#s11">الخاتمة والخلاصة</a>
+</div>
+
+<!-- ════ 1: IJAZA SYSTEM ════ -->
+<h2 id="s1">١. نظام الإجازة والعوائل العلمية</h2>
+<div class="quote">
+  <span class="author">المنطلق:</span>
+  الإجازة في التراث الإمامي تتلخّص في ثلاث صور: تكفّل المُجيز بالتصحيح، وإحالة التصحيح للمُجاز، ومجرّد الإقرار. ويغلب الظنّ بوقوع الإجازات في رواية الأبناء ومن بحكمهم عن الآباء، وهذه الوسائط تشريفيّة لا يضرّ ضعفها. ونختبر أثر ذلك في البيانات.
+</div>
+
+<div class="card green">
+  <h3>العوائل العلمية — سلاسل الإجازة المؤكَّدة</h3>
+  <p>استخرجنا روابط النسب المتوارث (الابن عن أبيه/جدّه) من 183,295 سند. النتيجة: <strong>١٠ عوائل علمية رئيسية</strong> تمثّل سلاسل إجازة موثّقة:</p>
+  <table>
+    <tr><th>#</th><th>العائلة (الابن ← الأب)</th><th>التكرار</th></tr>
+    <tr><td>١</td><td>علي بن إبراهيم بن هاشم ← إبراهيم بن هاشم القمي</td><td><strong>٢١,١٤٩</strong></td></tr>
+    <tr><td>٢</td><td>محمد بن علي بن الحسين بن بابويه (الصدوق) ← علي بن الحسين بن بابويه</td><td><strong>١٤,٩٨٦</strong></td></tr>
+    <tr><td>٣</td><td>أحمد بن محمد بن يحيى العطار ← محمد بن يحيى العطار</td><td><strong>١٢,٣٤٠</strong></td></tr>
+    <tr><td>٤</td><td>جعفر بن محمد بن قولويه ← محمد بن قولويه</td><td><strong>٧,٧٩٠</strong></td></tr>
+    <tr><td>٥</td><td>أحمد بن محمد بن خالد البرقي ← محمد بن خالد البرقي</td><td><strong>٢,٩٩٨</strong></td></tr>
+    <tr><td>٦</td><td>الحسين بن علي بن يقطين ← علي بن يقطين</td><td><strong>٨٢٢</strong></td></tr>
+    <tr><td>٧</td><td>محمد بن سهل بن اليسع الأشعري ← سهل بن اليسع الأشعري</td><td><strong>٢٧١</strong></td></tr>
+    <tr><td>٨</td><td>علي بن أحمد بن عبد الله بن أحمد ← أحمد بن عبد الله بن أحمد</td><td><strong>٢٠٥</strong></td></tr>
+    <tr><td>٩</td><td>إبراهيم والحسن ابنا مهزيار ← علي بن مهزيار الأهوازي (أبوهما/عمّهما)</td><td><strong>١٩٠</strong></td></tr>
+    <tr><td>١٠</td><td>محمد بن عبد الله بن جعفر الحميري ← عبد الله بن جعفر الحميري</td><td><strong>١٤٣</strong></td></tr>
+    <tr><td>١١</td><td>الحسن بن علي بن أبي حمزة البطائني ← علي بن أبي حمزة البطائني</td><td><strong>١٤١</strong></td></tr>
+  </table>
+  <p style="margin-top:12px">إضافة إلى عوائل: <strong>بني أعين</strong> (زرارة وبكير وحمران → أبناؤهم، ٣٢٧ تكرراً)، <strong>بني فضّال</strong> (الحسن بن علي بن فضال → أبناؤه الثلاثة، ٥٦٠ تكرراً). مجموع الروابط العائلية: <strong>٦٨,٤٠٠</strong> رابط إجازة.</p>
+
+  <div class="discovery">
+    <div class="dlabel">🟡 توسعة</div>
+    <p>العوائل العلمية علامةٌ من علامات الأخذ من الكتب، تؤكّدها البيانات وتضيف <strong>٦ عوائل أخرى</strong>: آل الحلبي، آل الصفّار، آل الأشعري، آل القدّاح، آل الحذّاء، وآل الجعفري. كلّها تتبع نفس النمط: ابن ← أب = سلسلة إجازة عائلية.</p>
+  </div>
+</div>
+
+<!-- ════ 2: HISTORICAL IJAZA ════ -->
+<h2 id="s2">٢. الشواهد التاريخية على الإجازة</h2>
+<div class="quote">
+  <span class="author">شواهد تاريخيّة:</span>
+  من أمثلة الإجازة: إجازة أبي غالب الزراري لحفيده، وإجازة ابن أبي عمير للقاسم وجعفر المحمدي، وطلب أحمد الأشعري الإجازة من الوشّاء، وإجازة أبي غالب لكتاب الكافي، ومشيخة التهذيب... ونتحقّق من آثارها في الأسانيد.
+</div>
+
+<div class="card blue">
+  <h3>محمد بن أبي عمير زياد — أوسع شبكة رواية</h3>
+  <ul>
+    <li>يظهر في <strong>٢٣,٥٠٨ سنداً</strong> — ثاني أكثر راوٍ بعد الإمام الصادق عليه السلام</li>
+    <li>له <strong>١١٠ تلاميذ</strong> مباشرين — الأوسع بين غير المعصومين</li>
+    <li>يروي عن <strong>٣٣٠ شيخاً</strong></li>
+  </ul>
+
+  <div class="discovery">
+    <div class="dlabel">🟡 أصحاب الإجماع — ترتيب كمّي</div>
+    <table>
+      <tr><th>#</th><th>الراوي</th><th>التلاميذ</th><th>الطبقة</th></tr>
+      <tr><td>١</td><td>محمد بن أبي عمير زياد</td><td><strong>١١٠</strong></td><td>ط٦</td></tr>
+      <tr><td>٢</td><td>صفوان بن يحيى البجلي</td><td><strong>٨٦</strong></td><td>ط٦</td></tr>
+      <tr><td>٣</td><td>الحسن بن محبوب السرّاد</td><td><strong>٧٧</strong></td><td>ط٦</td></tr>
+      <tr><td>٤</td><td>أحمد بن محمد بن أبي نصر البزنطي</td><td><strong>٧٥</strong></td><td>ط٦</td></tr>
+      <tr><td>٥</td><td>يونس بن عبد الرحمن</td><td><strong>٦١</strong></td><td>ط٥</td></tr>
+      <tr><td>٦</td><td>عبد الله بن المغيرة البجلي</td><td><strong>٥٦</strong></td><td>ط٥</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ════ 3: 16 SIGNS ════ -->
+<h2 id="s3">٣. العلامات الست عشرة لاكتشاف النقل من الكتب</h2>
+<div class="quote">
+  <span class="author">الإطار:</span>
+  توجد عدّة علاماتٍ يمكن من خلالها إثبات أخذ الخبر من الكتاب. طبّقنا ٨ منها آليًّا على الأسانيد.
+</div>
+
+<h3>العلامة ١: التعليق على الراوي</h3>
+<div class="card">
+  <p>إذا ابتدأ المصنّف السند بغير شيخه معلّقاً على أسانيد متقدّمة = دليل على النسخ من كتاب. والمنهجية الصحيحة: <strong>لا ننظر إلى المصنّف نفسه بل إلى الراوي الذي يليه</strong> (المستوى ١). الكليني من الطبقة ٩، ومشايخه الحقيقيّون هم من <strong>الطبقة ٨ فقط</strong> (فارق طبقة واحدة = سماع). راوٍ من الطبقة ٧ أو ما قبلها في المستوى ١ = تعليق — الكليني أسقط الوسيط من ط٨ وأخذ من كتاب ذلك الراوي.</p>
+  <p><strong>نتيجة التحقّق:</strong> في الكافي (17,635 سلسلة، 17,756 موقعاً في المستوى ١):</p>
+  <ul>
+    <li><strong>18 راوياً</strong> من الطبقة الثامنة هم مشايخ الكليني الحقيقيّون (≥١٠ ظهوراً). أبرزهم: علي بن إبراهيم بن هاشم (٥,١٨٠)، محمد بن يحيى العطار (٤,٥٩٩)، أحمد بن إدريس القمي (٨٣٢).</li>
+    <li><strong>الطبقة السابعة = تعليق على الكتب:</strong> سهل بن زياد الآدمي (ط٧، ١,٥٢٦)، أحمد بن محمد بن خالد البرقي (ط٧، ١,٣١٥)، أحمد بن محمد بن عيسى الأشعري (ط٧، ٩٢٢) — الكليني <strong>لم يلقَهم</strong>. ظهورهم في المستوى ١ = إسقاط الوسيط من ط٨ وأخذ من كتبهم.</li>
+    <li><strong>24 سلسلة</strong> لا تبدأ بالكليني — بل بـ <strong>سهل بن زياد الآدمي</strong> (ط٧). أخذ من كتابه مباشرة.</li>
+    <li><strong>4264 موضعاً</strong> (24.0٪) يظهر فيها راوٍ من غير الطبقة ٨ = تعليق.</li>
+  </ul>
+  <p><strong>أبرز من عُلّق عليهم الإسناد في الكافي:</strong></p>
+  <table>
+    <tr><th>#</th><th>الراوي في المستوى ١ (ليس شيخاً للكليني)</th><th>طبقته</th><th>ظهوره</th><th>التشخيص</th></tr>
+    <tr><td>1</td><td>سهل بن زياد الآدمي</td><td>ط7</td><td><strong>1526</strong></td><td>تعليق — ليس من مشايخ الكليني</td></tr>
+<tr><td>2</td><td>أحمد بن محمد بن خالد البرقي</td><td>ط7</td><td><strong>1315</strong></td><td>تعليق — ليس من مشايخ الكليني</td></tr>
+<tr><td>3</td><td>أحمد بن محمد بن عيسى الأشعري</td><td>ط7</td><td><strong>922</strong></td><td>تعليق — ليس من مشايخ الكليني</td></tr>
+<tr><td>4</td><td>الحسن بن محبوب السراد</td><td>ط6</td><td><strong>58</strong></td><td>تعليق — ليس من مشايخ الكليني</td></tr>
+<tr><td>5</td><td>عثمان بن عيسى الكلابي</td><td>ط5</td><td><strong>40</strong></td><td>تعليق — ليس من مشايخ الكليني</td></tr>
+<tr><td>6</td><td>جعفر بن محمد الصادق عليه السلام</td><td>ط0</td><td><strong>38</strong></td><td>تعليق — ليس من مشايخ الكليني</td></tr>
+<tr><td>7</td><td>الحسن بن علي بن فضال التيمي</td><td>ط6</td><td><strong>37</strong></td><td>تعليق — ليس من مشايخ الكليني</td></tr>
+<tr><td>8</td><td>محمد بن أحمد بن يحيى بن عمران الأشعري</td><td>ط7</td><td><strong>29</strong></td><td>تعليق — ليس من مشايخ الكليني</td></tr>
+<tr><td>9</td><td>علي بن الحكم الأنباري</td><td>ط6</td><td><strong>23</strong></td><td>تعليق — ليس من مشايخ الكليني</td></tr>
+<tr><td>10</td><td>أحمد بن محمد بن أبي نصر البزنطي</td><td>ط6</td><td><strong>12</strong></td><td>تعليق — ليس من مشايخ الكليني</td></tr>
+
+  </table>
+  <div class="discovery">
+    <div class="dlabel">🟡 تصحيح جوهري: T7 ليسوا مشايخ الكليني</div>
+    <p><strong>سهل بن زياد الآدمي (ط٧)، أحمد البرقي (ط٧)، أحمد الأشعري (ط٧)</strong> — ليسوا مشايخ الكليني. الكليني (ط٩) يروي عنهم <strong>دائماً بتوسّط راوٍ من ط٨</strong>. ظهورهم المباشر في المستوى ١ = <strong>تعليق</strong>: أسقط الكليني الوسيط وأخذ من <strong>كتبهم</strong>. وهذا عين علامة التعليق.</p>
+  </div>
+</div>
+
+<h3>العلامة ٢: تعدّد الطرق (المركزية)العلامة ٢: تعدّد الطرق (المركزية)العلامة ٢: تعدّد الطرق (المركزية)العلامة ٢: تعدّد الطرق (المركزية)</h3>
+<div class="card">
+  <p><strong>أكثر الرواة مركزية — عدد التلاميذ المباشرين (بعد استبعاد الأئمّة عليهم السلام):</strong></p>
+  <table>
+    <tr><th>#</th><th>الراوي</th><th>التلاميذ</th><th>الطبقة</th></tr>
+    <tr><td>1</td><td>يحيى أبو بصير الأسدي</td><td><strong>170</strong></td><td>ط4</td></tr><tr><td>2</td><td>ثابت بن دينار أبو حمزة الثمالي</td><td><strong>153</strong></td><td>ط4</td></tr><tr><td>3</td><td>محمد بن مسلم الثقفي</td><td><strong>119</strong></td><td>ط4</td></tr><tr><td>4</td><td>إسحاق بن عمار الصيرفي</td><td><strong>115</strong></td><td>ط5</td></tr><tr><td>5</td><td>عبد الله بن سنان مولى بني هاشم</td><td><strong>113</strong></td><td>ط5</td></tr><tr><td>6</td><td>زرارة بن أعين الشيباني</td><td><strong>112</strong></td><td>ط4</td></tr><tr><td>7</td><td>محمد بن أبي عمير زياد</td><td><strong>110</strong></td><td>ط6</td></tr><tr><td>8</td><td>محمد بن سنان الزاهري</td><td><strong>97</strong></td><td>ط6</td></tr><tr><td>9</td><td>صفوان بن يحيى البجلي</td><td><strong>86</strong></td><td>ط6</td></tr><tr><td>10</td><td>جابر بن يزيد الجعفي</td><td><strong>84</strong></td><td>ط3</td></tr><tr><td>11</td><td>المفضل بن عمر الجعفي</td><td><strong>80</strong></td><td>ط5</td></tr><tr><td>12</td><td>حماد بن عيسى الجهني</td><td><strong>79</strong></td><td>ط5</td></tr><tr><td>13</td><td>معاوية بن عمار الدهني</td><td><strong>79</strong></td><td>ط5</td></tr><tr><td>14</td><td>أبان بن عثمان الأحمر</td><td><strong>78</strong></td><td>ط5</td></tr><tr><td>15</td><td>عبد الله بن بكير بن أعين</td><td><strong>78</strong></td><td>ط5</td></tr><tr><td>16</td><td>الحسن بن محبوب السراد</td><td><strong>77</strong></td><td>ط6</td></tr><tr><td>17</td><td>أحمد بن محمد بن أبي نصر البزنطي</td><td><strong>75</strong></td><td>ط6</td></tr><tr><td>18</td><td>عبد الله بن مسكان</td><td><strong>75</strong></td><td>ط5</td></tr><tr><td>19</td><td>الحسن بن علي بن فضال التيمي</td><td><strong>72</strong></td><td>ط6</td></tr><tr><td>20</td><td>سماعة بن مهران</td><td><strong>69</strong></td><td>ط5</td></tr>
+  </table>
+</div>
+
+<h3>العلامة ٥: تكرار سند معيّن — بصمة المخطوط</h3>
+<div class="card green">
+  <p><strong>أكثر السلاسل الثنائية تكراراً (bigrams):</strong></p>
+  <table>
+    <tr><th>#</th><th>التكرار</th><th>الطالب</th><th></th><th>الشيخ</th></tr>
+    <tr><td>1</td><td><strong>46,833</strong></td><td>محمد بن الحسن بن علي الطوسي</td><td>←</td><td>محمد بن محمد بن النعمان المفيد</td></tr><tr><td>2</td><td><strong>26,470</strong></td><td>أحمد بن محمد بن عيسى الأشعري</td><td>←</td><td>الحسين بن سعيد الأهوازي</td></tr><tr><td>3</td><td><strong>25,776</strong></td><td>محمد بن الحسن بن علي الطوسي</td><td>←</td><td>الحسين بن عبيد الله الغضائري</td></tr><tr><td>4</td><td><strong>22,852</strong></td><td>محمد بن الحسن بن أحمد بن الوليد</td><td>←</td><td>محمد بن الحسن الصفار</td></tr><tr><td>5</td><td><strong>21,325</strong></td><td>محمد بن محمد بن النعمان المفيد</td><td>←</td><td>الحسين بن عبيد الله الغضائري</td></tr><tr><td>6</td><td><strong>21,143</strong></td><td>علي بن إبراهيم بن هاشم</td><td>←</td><td>إبراهيم بن هاشم القمي</td></tr><tr><td>7</td><td><strong>21,067</strong></td><td>الحسين بن عبيد الله الغضائري</td><td>←</td><td>أحمد بن عبد الواحد ابن عبدون</td></tr><tr><td>8</td><td><strong>20,168</strong></td><td>محمد بن يعقوب الكليني</td><td>←</td><td>علي بن إبراهيم بن هاشم</td></tr><tr><td>9</td><td><strong>19,009</strong></td><td>محمد بن الحسن الصفار</td><td>←</td><td>أحمد بن محمد بن عيسى الأشعري</td></tr><tr><td>10</td><td><strong>16,197</strong></td><td>محمد بن محمد بن النعمان المفيد</td><td>←</td><td>جعفر بن محمد بن قولويه</td></tr><tr><td>11</td><td><strong>15,265</strong></td><td>محمد بن الحسن بن علي الطوسي</td><td>←</td><td>علي بن أحمد بن محمد بن طاهر ابن أبي جيد</td></tr><tr><td>12</td><td><strong>15,265</strong></td><td>علي بن أحمد بن محمد بن طاهر ابن أبي جيد</td><td>←</td><td>محمد بن الحسن بن أحمد بن الوليد</td></tr><tr><td>13</td><td><strong>15,032</strong></td><td>أحمد بن محمد بن الحسن بن الوليد</td><td>←</td><td>محمد بن الحسن بن أحمد بن الوليد</td></tr><tr><td>14</td><td><strong>14,984</strong></td><td>محمد بن علي بن الحسين بن بابويه</td><td>←</td><td>علي بن الحسين بن بابويه</td></tr><tr><td>15</td><td><strong>14,098</strong></td><td>سعد بن عبد الله القمي</td><td>←</td><td>أحمد بن محمد بن عيسى الأشعري</td></tr>
+  </table>
+
+  <p style="margin-top:16px"><strong>أكثر السلاسل الثلاثية تكراراً (trigrams):</strong></p>
+  <table>
+    <tr><th>#</th><th>التكرار</th><th>السلسلة</th></tr>
+    <tr><td>1</td><td><strong>21,325</strong></td><td>محمد بن الحسن بن علي الطوسي ← محمد بن محمد بن النعمان المفيد ← الحسين بن عبيد الله الغضائري</td></tr><tr><td>2</td><td><strong>21,067</strong></td><td>محمد بن محمد بن النعمان المفيد ← الحسين بن عبيد الله الغضائري ← أحمد بن عبد الواحد ابن عبدون</td></tr><tr><td>3</td><td><strong>18,917</strong></td><td>محمد بن الحسن بن أحمد بن الوليد ← محمد بن الحسن الصفار ← أحمد بن محمد بن عيسى الأشعري</td></tr><tr><td>4</td><td><strong>17,911</strong></td><td>محمد بن يعقوب الكليني ← علي بن إبراهيم بن هاشم ← إبراهيم بن هاشم القمي</td></tr><tr><td>5</td><td><strong>16,188</strong></td><td>محمد بن الحسن بن علي الطوسي ← محمد بن محمد بن النعمان المفيد ← جعفر بن محمد بن قولويه</td></tr><tr><td>6</td><td><strong>15,265</strong></td><td>محمد بن الحسن بن علي الطوسي ← علي بن أحمد بن محمد بن طاهر ابن أبي جيد ← محمد بن الحسن بن أحمد بن الوليد</td></tr><tr><td>7</td><td><strong>13,949</strong></td><td>الحسين بن عبيد الله الغضائري ← أحمد بن عبد الواحد ابن عبدون ← أحمد بن محمد بن الحسن بن الوليد</td></tr><tr><td>8</td><td><strong>13,949</strong></td><td>أحمد بن عبد الواحد ابن عبدون ← أحمد بن محمد بن الحسن بن الوليد ← محمد بن الحسن بن أحمد بن الوليد</td></tr><tr><td>9</td><td><strong>12,763</strong></td><td>محمد بن الحسن الصفار ← أحمد بن محمد بن عيسى الأشعري ← الحسين بن سعيد الأهوازي</td></tr><tr><td>10</td><td><strong>10,166</strong></td><td>أحمد بن محمد بن الحسن بن الوليد ← محمد بن الحسن بن أحمد بن الوليد ← محمد بن الحسن الصفار</td></tr><tr><td>11</td><td><strong>10,108</strong></td><td>علي بن أحمد بن محمد بن طاهر ابن أبي جيد ← محمد بن الحسن بن أحمد بن الوليد ← محمد بن الحسن الصفار</td></tr><tr><td>12</td><td><strong>9,476</strong></td><td>محمد بن علي بن الحسين بن بابويه ← علي بن الحسين بن بابويه ← سعد بن عبد الله القمي</td></tr><tr><td>13</td><td><strong>9,102</strong></td><td>محمد بن الحسن بن علي الطوسي ← الحسين بن عبيد الله الغضائري ← أحمد بن محمد بن يحيى العطار</td></tr><tr><td>14</td><td><strong>9,102</strong></td><td>الحسين بن عبيد الله الغضائري ← أحمد بن محمد بن يحيى العطار ← محمد بن يحيى العطار</td></tr><tr><td>15</td><td><strong>8,622</strong></td><td>علي بن إبراهيم بن هاشم ← إبراهيم بن هاشم القمي ← محمد بن أبي عمير زياد</td></tr>
+  </table>
+
+  <p style="margin-top:16px"><strong>أكثر السلاسل الرباعية تكراراً (4-grams) — بصمات مخطوطات كاملة:</strong></p>
+  <table>
+    <tr><th>#</th><th>التكرار</th><th>الطالب</th><th></th><th>السلسلة الكاملة (٤ رواة)</th></tr>
+    <tr><td>1</td><td><strong>21,067</strong></td><td>محمد بن الحسن بن علي الطوسي</td><td>←</td><td style="font-size:.85rem">محمد بن الحسن بن علي الطوسي ← محمد بن محمد بن النعمان المفيد ← الحسين بن عبيد الله الغضائري ← أحمد بن عبد الواحد ابن عبدون</td></tr><tr><td>2</td><td><strong>13,949</strong></td><td>محمد بن محمد بن النعمان المفيد</td><td>←</td><td style="font-size:.85rem">محمد بن محمد بن النعمان المفيد ← الحسين بن عبيد الله الغضائري ← أحمد بن عبد الواحد ابن عبدون ← أحمد بن محمد بن الحسن بن الوليد</td></tr><tr><td>3</td><td><strong>13,949</strong></td><td>الحسين بن عبيد الله الغضائري</td><td>←</td><td style="font-size:.85rem">الحسين بن عبيد الله الغضائري ← أحمد بن عبد الواحد ابن عبدون ← أحمد بن محمد بن الحسن بن الوليد ← محمد بن الحسن بن أحمد بن الوليد</td></tr><tr><td>4</td><td><strong>12,738</strong></td><td>محمد بن الحسن بن أحمد بن الوليد</td><td>←</td><td style="font-size:.85rem">محمد بن الحسن بن أحمد بن الوليد ← محمد بن الحسن الصفار ← أحمد بن محمد بن عيسى الأشعري ← الحسين بن سعيد الأهوازي</td></tr><tr><td>5</td><td><strong>10,108</strong></td><td>محمد بن الحسن بن علي الطوسي</td><td>←</td><td style="font-size:.85rem">محمد بن الحسن بن علي الطوسي ← علي بن أحمد بن محمد بن طاهر ابن أبي جيد ← محمد بن الحسن بن أحمد بن الوليد ← محمد بن الحسن الصفار</td></tr><tr><td>6</td><td><strong>10,036</strong></td><td>أحمد بن عبد الواحد ابن عبدون</td><td>←</td><td style="font-size:.85rem">أحمد بن عبد الواحد ابن عبدون ← أحمد بن محمد بن الحسن بن الوليد ← محمد بن الحسن بن أحمد بن الوليد ← محمد بن الحسن الصفار</td></tr><tr><td>7</td><td><strong>9,266</strong></td><td>أحمد بن محمد بن الحسن بن الوليد</td><td>←</td><td style="font-size:.85rem">أحمد بن محمد بن الحسن بن الوليد ← محمد بن الحسن بن أحمد بن الوليد ← محمد بن الحسن الصفار ← أحمد بن محمد بن عيسى الأشعري</td></tr><tr><td>8</td><td><strong>9,248</strong></td><td>علي بن أحمد بن محمد بن طاهر ابن أبي جيد</td><td>←</td><td style="font-size:.85rem">علي بن أحمد بن محمد بن طاهر ابن أبي جيد ← محمد بن الحسن بن أحمد بن الوليد ← محمد بن الحسن الصفار ← أحمد بن محمد بن عيسى الأشعري</td></tr><tr><td>9</td><td><strong>9,102</strong></td><td>محمد بن الحسن بن علي الطوسي</td><td>←</td><td style="font-size:.85rem">محمد بن الحسن بن علي الطوسي ← الحسين بن عبيد الله الغضائري ← أحمد بن محمد بن يحيى العطار ← محمد بن يحيى العطار</td></tr><tr><td>10</td><td><strong>8,531</strong></td><td>محمد بن الحسن بن علي الطوسي</td><td>←</td><td style="font-size:.85rem">محمد بن الحسن بن علي الطوسي ← محمد بن محمد بن النعمان المفيد ← جعفر بن محمد بن قولويه ← محمد بن يعقوب الكليني</td></tr><tr><td>11</td><td><strong>7,686</strong></td><td>الحسين بن عبيد الله الغضائري</td><td>←</td><td style="font-size:.85rem">الحسين بن عبيد الله الغضائري ← أحمد بن محمد بن يحيى العطار ← محمد بن يحيى العطار ← محمد بن علي بن محبوب</td></tr><tr><td>12</td><td><strong>7,633</strong></td><td>محمد بن الحسن بن علي الطوسي</td><td>←</td><td style="font-size:.85rem">محمد بن الحسن بن علي الطوسي ← محمد بن محمد بن النعمان المفيد ← جعفر بن محمد بن قولويه ← محمد بن قولويه</td></tr>
+  </table>
+
+  <p style="margin-top:16px"><strong>أكثر السلاسل الخماسية تكراراً (5-grams):</strong></p>
+  <table>
+    <tr><th>#</th><th>التكرار</th><th>السلسلة</th></tr>
+    <tr><td>1</td><td><strong>13,949</strong></td><td style="font-size:.82rem">محمد بن الحسن بن علي الطوسي ← محمد بن محمد بن النعمان المفيد ← الحسين بن عبيد الله الغضائري ← أحمد بن عبد الواحد ابن عبدون ← أحمد بن محمد بن الحسن بن الوليد</td></tr><tr><td>2</td><td><strong>13,949</strong></td><td style="font-size:.82rem">محمد بن محمد بن النعمان المفيد ← الحسين بن عبيد الله الغضائري ← أحمد بن عبد الواحد ابن عبدون ← أحمد بن محمد بن الحسن بن الوليد ← محمد بن الحسن بن أحمد بن الوليد</td></tr><tr><td>3</td><td><strong>10,036</strong></td><td style="font-size:.82rem">الحسين بن عبيد الله الغضائري ← أحمد بن عبد الواحد ابن عبدون ← أحمد بن محمد بن الحسن بن الوليد ← محمد بن الحسن بن أحمد بن الوليد ← محمد بن الحسن الصفار</td></tr><tr><td>4</td><td><strong>9,248</strong></td><td style="font-size:.82rem">محمد بن الحسن بن علي الطوسي ← علي بن أحمد بن محمد بن طاهر ابن أبي جيد ← محمد بن الحسن بن أحمد بن الوليد ← محمد بن الحسن الصفار ← أحمد بن محمد بن عيسى الأشعري</td></tr><tr><td>5</td><td><strong>9,178</strong></td><td style="font-size:.82rem">أحمد بن عبد الواحد ابن عبدون ← أحمد بن محمد بن الحسن بن الوليد ← محمد بن الحسن بن أحمد بن الوليد ← محمد بن الحسن الصفار ← أحمد بن محمد بن عيسى الأشعري</td></tr><tr><td>6</td><td><strong>7,686</strong></td><td style="font-size:.82rem">محمد بن الحسن بن علي الطوسي ← الحسين بن عبيد الله الغضائري ← أحمد بن محمد بن يحيى العطار ← محمد بن يحيى العطار ← محمد بن علي بن محبوب</td></tr><tr><td>7</td><td><strong>7,631</strong></td><td style="font-size:.82rem">محمد بن الحسن بن علي الطوسي ← محمد بن محمد بن النعمان المفيد ← جعفر بن محمد بن قولويه ← محمد بن قولويه ← سعد بن عبد الله القمي</td></tr><tr><td>8</td><td><strong>6,721</strong></td><td style="font-size:.82rem">محمد بن محمد بن النعمان المفيد ← جعفر بن محمد بن قولويه ← محمد بن قولويه ← سعد بن عبد الله القمي ← أحمد بن محمد بن عيسى الأشعري</td></tr>
+  </table>
+
+  <div class="discovery">
+    <div class="dlabel">🟡 اكتشاف: سلسلة الكافي السباعية — ٨٥٣ نسخة متطابقة</div>
+    <p><strong>محمد بن يعقوب الكليني ← علي بن إبراهيم بن هاشم ← إبراهيم بن هاشم القمي ← محمد بن أبي عمير زياد ← حماد بن عثمان الناب ← عبيد الله بن علي الحلبي ← جعفر بن محمد الصادق عليه السلام</strong>. هذه السلسلة السباعية هي الأكثر نسخاً في التراث الإمامي — بصمة مخطوط الكافي الرئيسي.</p>
+  </div>
+</div>
+
+<h3>العلامة ٧: النزول في الإسناد</h3>
+<div class="note-box">
+  <div class="ntitle">⚠ تصحيح منهجي: تعريف النزول</div>
+  <p><strong>النزول = الرواية عن قرين في نفس الطبقة لإطالة السند.</strong> المطلوب عادةً <strong>علوّ الإسناد</strong> (أقصر سلسلة إلى المعصوم). فإذا رأينا راوياً يروي عن <strong>قرينه في نفس الطبقة</strong> فيُطيل السلسلة، كان دليلاً على أنه فعل ذلك <strong>ليأخذ من كتاب</strong> ذلك القرين — لا سماعاً. مثال ذلك: الكليني (ط٩) عن العطّار (ط٨) عن <strong>الصفّار (ط٨ أيضاً)</strong> — فالعطّار روى عن قرينه الصفّار لسحب كتابه.</p>
+</div>
+<div class="card">
+  <p><strong>أبرز حالات النزول (رواية عن قرين في نفس الطبقة — كلاهما في طبقته نفسها):</strong></p>
+  <table>
+    <tr><th>#</th><th>التكرار</th><th>النازل</th><th>طبقته</th><th>المنزول إليه (القرين)</th><th>طبقته</th><th>التشخيص</th></tr>
+    <tr><td>1</td><td>6,454</td><td>محمد بن علي بن محبوب</td><td>ط7</td><td>أحمد بن محمد بن عيسى الأشعري</td><td>ط7</td><td>قرين (نفس الطبقة)</td></tr><tr><td>2</td><td>2,299</td><td>الحسين بن سعيد الأهوازي</td><td>ط5</td><td>فضالة بن أيوب</td><td>ط5</td><td>قرين (نفس الطبقة)</td></tr><tr><td>3</td><td>1,539</td><td>الحسين بن سعيد الأهوازي</td><td>ط5</td><td>النضر بن سويد الصيرفي</td><td>ط5</td><td>قرين (نفس الطبقة)</td></tr><tr><td>4</td><td>1,525</td><td>الحسين بن سعيد الأهوازي</td><td>ط5</td><td>حماد بن عيسى الجهني</td><td>ط5</td><td>قرين (نفس الطبقة)</td></tr><tr><td>5</td><td>1,323</td><td>حماد بن عيسى الجهني</td><td>ط5</td><td>حريز بن عبد الله السجستاني</td><td>ط5</td><td>قرين (نفس الطبقة)</td></tr><tr><td>6</td><td>844</td><td>أحمد بن محمد بن عيسى الأشعري</td><td>ط7</td><td>موسى بن القاسم البجلي</td><td>ط7</td><td>قرين (نفس الطبقة)</td></tr><tr><td>7</td><td>789</td><td>عثمان بن عيسى الكلابي</td><td>ط5</td><td>سماعة بن مهران</td><td>ط5</td><td>قرين (نفس الطبقة)</td></tr><tr><td>8</td><td>762</td><td>الفضل بن عامر</td><td>ط7</td><td>موسى بن القاسم البجلي</td><td>ط7</td><td>قرين (نفس الطبقة)</td></tr><tr><td>9</td><td>670</td><td>فضالة بن أيوب</td><td>ط5</td><td>أبان بن عثمان الأحمر</td><td>ط5</td><td>قرين (نفس الطبقة)</td></tr><tr><td>10</td><td>599</td><td>زرعة بن محمد الحضرمي</td><td>ط5</td><td>سماعة بن مهران</td><td>ط5</td><td>قرين (نفس الطبقة)</td></tr><tr><td>11</td><td>484</td><td>الحسين بن سعيد الأهوازي</td><td>ط5</td><td>عثمان بن عيسى الكلابي</td><td>ط5</td><td>قرين (نفس الطبقة)</td></tr><tr><td>12</td><td>480</td><td>عمرو بن سعيد المدائني</td><td>ط6</td><td>مصدق بن صدقة</td><td>ط6</td><td>قرين (نفس الطبقة)</td></tr>
+  </table>
+</div>
+
+<h3>العلامة ١١: السقط — يونس عن أبي بصير</h3>
+<div class="card">
+  <p>رواياتُ يونس عن أبي بصير فيها إسقاط. تحقّقنا: المباشرة نادرة، والأغلبية بالواسطة ✓.</p>
+  <table>
+    <tr><th>الواسطة</th><th>عدد المرّات</th><th>ثابتة بالأسانيد؟</th></tr>
+    <tr><td>عبد الله بن مسكان</td><td><strong>١٦٢</strong></td><td>✓</td></tr>
+    <tr><td>سماعة بن مهران</td><td>٦٧</td><td>✓</td></tr>
+    <tr><td>علي بن أبي حمزة البطائني</td><td>٤٢</td><td>✓</td></tr>
+    <tr><td>إسحاق بن عمار الصيرفي</td><td>٣٨</td><td>✓</td></tr>
+  </table>
+</div>
+
+<!-- ════ 4: FOUR PHENOMENA ════ -->
+<h2 id="s4">٤. الظواهر الرجالية الأربعة</h2>
+
+<div class="card red">
+  <h3>الظاهرة الأولى: الرواة الممنوعون من النقل عنهم</h3>
+  <table>
+    <tr><th>الراوي</th><th>الحكم</th><th>الثقات الرواة عنه</th></tr>
+    <tr><td>علي بن أبي حمزة البطائني</td><td><span class="tag thiqa">ثقة غير إمامي</span></td><td><strong>٥٥</strong></td></tr>
+    <tr><td>الحسن بن علي بن أبي حمزة البطائني</td><td><span class="tag daif">ضعيف غير إمامي</span></td><td>٢١</td></tr>
+    <tr><td>محمد بن علي أبو سمينة</td><td><span class="tag daif">ضعيف غير إمامي</span></td><td>٢٤</td></tr>
+    <tr><td>جعفر بن محمد بن مالك</td><td><span class="tag daif">ضعيف</span></td><td>١١</td></tr>
+  </table>
+</div>
+
+<div class="card gold">
+  <h3>الظاهرة الثانية: «ثقة في نفسه، يروي عن الضعفاء» — أول تصنيف كمّي</h3>
+  <p>مرتّبون حسب <strong>نسبة الشيوخ الضعفاء المرجّحة</strong> (بتردّد الأسانيد، لا مجرّد العدّ):</p>
+  <table>
+    <tr><th>#</th><th>الراوي الثقة</th><th>شيوخه</th><th>الضعفاء</th><th>النسبة المرجّحة</th><th>أمثلة</th></tr>
+    <tr><td>1</td><td>أحمد بن النضر الخزاز</td><td>24</td><td>1</td><td><strong>76.7٪</strong></td><td style="font-size:.8rem;color:var(--soft)">عمرو بن شمر الجعفي</td></tr><tr><td>2</td><td>أحمد بن مهران</td><td>4</td><td>1</td><td><strong>76.4٪</strong></td><td style="font-size:.8rem;color:var(--soft)">محمد بن علي أبو سمينة</td></tr><tr><td>3</td><td>علي بن محمد القاساني</td><td>25</td><td>4</td><td><strong>66.7٪</strong></td><td style="font-size:.8rem;color:var(--soft)">القاسم بن محمد الإصفهاني · سليمان بن مقبل أبو أیوب المدني</td></tr><tr><td>4</td><td>زياد بن سوقة الجريري</td><td>5</td><td>1</td><td><strong>65.9٪</strong></td><td style="font-size:.8rem;color:var(--soft)">الحكم بن عتيبة الكندي</td></tr><tr><td>5</td><td>الحسن بن محمد بن جمهور</td><td>9</td><td>1</td><td><strong>60.0٪</strong></td><td style="font-size:.8rem;color:var(--soft)">محمد بن جمهور العمي</td></tr><tr><td>6</td><td>محمد بن إسماعيل البرمكي</td><td>32</td><td>2</td><td><strong>56.5٪</strong></td><td style="font-size:.8rem;color:var(--soft)">علي بن العباس الجراذيني · عبد الله بن داهر بن يحيى الأحمري</td></tr><tr><td>7</td><td>عبد الملك بن عبد العزيز بن جريج</td><td>6</td><td>1</td><td><strong>52.0٪</strong></td><td style="font-size:.8rem;color:var(--soft)">عطاء بن أبي رباح</td></tr><tr><td>8</td><td>آدم بن إسحاق بن آدم الأشعري</td><td>6</td><td>1</td><td><strong>51.9٪</strong></td><td style="font-size:.8rem;color:var(--soft)">عبد الله بن محمد الجعفي</td></tr><tr><td>9</td><td>أحمد بن علي بن كلثوم السرخسي</td><td>4</td><td>1</td><td><strong>50.0٪</strong></td><td style="font-size:.8rem;color:var(--soft)">إسحاق بن محمد بن أحمد النخعي</td></tr><tr><td>10</td><td>محمد ماجیلویه بن عبد الله بن عمران البرقی</td><td>17</td><td>1</td><td><strong>47.5٪</strong></td><td style="font-size:.8rem;color:var(--soft)">محمد بن علي أبو سمينة</td></tr><tr><td>11</td><td>السندي بن محمد البزاز</td><td>22</td><td>1</td><td><strong>47.3٪</strong></td><td style="font-size:.8rem;color:var(--soft)">وهب بن وهب القرشي</td></tr><tr><td>12</td><td>إسماعيل بن مهران بن محمد بن أبي نصر</td><td>54</td><td>3</td><td><strong>45.7٪</strong></td><td style="font-size:.8rem;color:var(--soft)">الحسن بن علي بن أبي حمزة البطائني · محمد بن أسلم الطبري الجبلي</td></tr><tr><td>13</td><td>محمد بن إسحاق بن يسار المدني</td><td>7</td><td>1</td><td><strong>45.7٪</strong></td><td style="font-size:.8rem;color:var(--soft)">محمد بن مسلم بن شهاب الزهري</td></tr><tr><td>14</td><td>نصر بن مزاحم المنقري</td><td>12</td><td>2</td><td><strong>38.0٪</strong></td><td style="font-size:.8rem;color:var(--soft)">عمرو بن شمر الجعفي · عمرو بن خالد الواسطي</td></tr><tr><td>15</td><td>الحسين بن أحمد المنقري التميمي</td><td>8</td><td>1</td><td><strong>35.3٪</strong></td><td style="font-size:.8rem;color:var(--soft)">يونس بن ظبيان</td></tr><tr><td>16</td><td>الحسين بن إشكيب المروزي</td><td>7</td><td>1</td><td><strong>33.3٪</strong></td><td style="font-size:.8rem;color:var(--soft)">محمد بن علي أبو سمينة</td></tr><tr><td>17</td><td>سلامة بن محمد الأرزني</td><td>5</td><td>1</td><td><strong>29.4٪</strong></td><td style="font-size:.8rem;color:var(--soft)">محمد بن جعفر بن أحمد بن بطة</td></tr><tr><td>18</td><td>محمد بن بكر بن جناح</td><td>7</td><td>2</td><td><strong>28.9٪</strong></td><td style="font-size:.8rem;color:var(--soft)">زكريا بن محمد المؤمن · زياد بن المنذر أبو الجارود الهمداني</td></tr><tr><td>19</td><td>جعفر بن عبد الله رأس المذري</td><td>8</td><td>1</td><td><strong>27.3٪</strong></td><td style="font-size:.8rem;color:var(--soft)">كثير بن عياش القطان</td></tr><tr><td>20</td><td>عامر بن كثير السراج النهدي</td><td>4</td><td>1</td><td><strong>27.3٪</strong></td><td style="font-size:.8rem;color:var(--soft)">زياد بن المنذر أبو الجارود الهمداني</td></tr>
+  </table>
+  <div class="discovery">
+    <div class="dlabel">🟡 سُمعة الكشّي والعيّاشي مبالغ فيها</div>
+    <p>نسبة شيوخهم الضعفاء ٢-٣٪ فقط — من أدنى النسب. وصفهم بـ «يروي عن الضعفاء كثيراً» لا تدعمه البيانات.</p>
+  </div>
+</div>
+
+<div class="card">
+  <h3>الظاهرة الثالثة والرابعة: ضعفاء كتُبهم صحيحة</h3>
+  <table>
+    <tr><th>الراوي</th><th>قول المتقدّمين</th><th>دراية النور</th></tr>
+    <tr><td>إبراهيم بن إسحاق الأحمري النهاوندي</td><td><span class="tag daif">ضعيف، كتبه قريبة من السداد</span></td><td><span class="tag thiqa">ثقة إمامي</span></td></tr>
+    <tr><td>طلحة بن زيد</td><td><span class="tag daif">عامّي، كتابه معتمد</span></td><td><span class="tag thiqa">ثقة غير إمامي</span></td></tr>
+    <tr><td>المعلى بن محمد البصري</td><td><span class="tag daif">مضطرب، كتبه قريبة</span></td><td><span class="tag thiqa">ثقة إمامي</span></td></tr>
+    <tr><td>محمد بن أورمة القمي</td><td><span class="tag daif">متّهم بالغلو، كتبه صحاح</span></td><td><span class="tag thiqa">ثقة إمامي</span></td></tr>
+    <tr><td>أحمد بن هلال العبرتائي</td><td><span class="tag daif">توقّف إلا في روايته عن ابن محبوب</span></td><td><span class="tag thiqa">ثقة غير إمامي</span></td></tr>
+  </table>
+  <div class="discovery">
+    <div class="dlabel">🟡 تطوّر التقييم الرجالي عبر الزمن</div>
+    <p>جميع «الضعفاء» عند ابن الغضائري (القرن ٥) هم <strong>ثقات</strong> في دراية النور (القرن ١٥). دليل على تطوّر المنهج من التشديد إلى التوثيق العام.</p>
+  </div>
+</div>
+
+<!-- ════ 5: IMPLICIT TAWTHIQ ════ -->
+<h2 id="s5">٥. التوثيق الضمني — المحرّك المصحَّح</h2>
+<div class="quote">
+  <span class="author">القاعدة:</span>
+  إكثارُ الجليل عن راوٍ معيّن فيما لا يُتسامح فيه كاشفٌ عن توثيقه للراوي.
+</div>
+
+<div class="note-box">
+  <div class="ntitle">⚠ ثلاث طبقات للتمييز</div>
+  <p><strong>١. المباشرة فقط (فارق ١-٢ طبقة):</strong> لا نحتسب إلا السماع المباشر. نستبعد: النزول (نفس الطبقة = أخذ من كتاب)، البُعد (≥٣ طبقات = نقل كتابي)، العمود الفقري (نسخ كتاب مؤلّف كاملاً).</p>
+  <p><strong>٢. إسقاط المتساهلين:</strong> الثقة المعروف بـ «يروي عن الضعفاء» لا تُحتسَب روايته (تنبيهٌ منهجيٌّ مقرَّر).</p>
+  <p><strong>٣. موضوع الرواية:</strong> التصنيف الأعلى يقتضي ≥٥٠٪ من أسانيد الراوي في كتب الفقه الإلزامي.</p>
+</div>
+
+<div class="card gold">
+  <h3>أعلى ١٥ راوياً حصلوا على توثيق ضمني</h3>
+  <table>
+    <tr><th>#</th><th>الراوي</th><th>الأجلّاء</th><th>الثقات</th><th>تنوّع</th><th>فقه٪</th><th>التقويم الرسمي</th></tr>
+    <tr><td>1</td><td>محمد بن مروان الذهلي البصري</td><td><strong>23</strong></td><td>31</td><td>13</td><td>74٪</td><td><span class="tag majhul">بلا تقويم</span></td></tr><tr><td>2</td><td>زياد بن المنذر أبو الجارود الهمداني</td><td><strong>17</strong></td><td>25</td><td>35</td><td>73٪</td><td><span class="tag daif">ضعیف مصرح غیر امامی</span></td></tr><tr><td>3</td><td>عبد الله بن محمد الحجال</td><td><strong>16</strong></td><td>20</td><td>50</td><td>82٪</td><td><span class="tag daif">ضعیف مصرح امامی ⚠</span></td></tr><tr><td>4</td><td>عمرو بن شمر الجعفي</td><td><strong>14</strong></td><td>24</td><td>15</td><td>75٪</td><td><span class="tag daif">ضعیف مصرح امامی</span></td></tr><tr><td>5</td><td>يونس بن ظبيان</td><td><strong>10</strong></td><td>18</td><td>5</td><td>69٪</td><td><span class="tag daif">ضعیف مصرح غیر امامی ⚠</span></td></tr><tr><td>6</td><td>محمد بن علي أبو سمينة</td><td><strong>10</strong></td><td>16</td><td>159</td><td>67٪</td><td><span class="tag daif">ضعیف مصرح غیر امامی ⚠</span></td></tr><tr><td>7</td><td>المنهال القصاب</td><td><strong>9</strong></td><td>11</td><td>4</td><td>87٪</td><td><span class="tag majhul">بلا تقويم</span></td></tr><tr><td>8</td><td>الوليد بن أبان الرازي</td><td><strong>9</strong></td><td>9</td><td>5</td><td>92٪</td><td><span class="tag majhul">بلا تقويم</span></td></tr><tr><td>9</td><td>زكريا بن محمد المؤمن</td><td><strong>7</strong></td><td>11</td><td>35</td><td>75٪</td><td><span class="tag daif">ضعیف مصرح غیر امامی</span></td></tr><tr><td>10</td><td>الحسين بن علوان الكلبي</td><td><strong>7</strong></td><td>10</td><td>11</td><td>90٪</td><td><span class="tag daif">ضعیف مصرح غیر امامی</span></td></tr><tr><td>11</td><td>سلمة بن محرز القلانسي الکوفي</td><td><strong>7</strong></td><td>10</td><td>5</td><td>81٪</td><td><span class="tag majhul">بلا تقويم</span></td></tr><tr><td>12</td><td>إسماعيل بن سهل الدهقان</td><td><strong>7</strong></td><td>7</td><td>10</td><td>88٪</td><td><span class="tag daif">ضعیف مصرح امامی</span></td></tr><tr><td>13</td><td>نصر بن إسحاق الكوفي</td><td><strong>7</strong></td><td>7</td><td>3</td><td>83٪</td><td><span class="tag majhul">بلا تقويم</span></td></tr><tr><td>14</td><td>الحسن بن علي بن أبي حمزة البطائني</td><td><strong>6</strong></td><td>12</td><td>58</td><td>64٪</td><td><span class="tag daif">ضعیف مصرح غیر امامی ⚠</span></td></tr><tr><td>15</td><td>عبد الرحيم بن روح القصير</td><td><strong>6</strong></td><td>11</td><td>4</td><td>63٪</td><td><span class="tag majhul">بلا تقويم</span></td></tr>
+  </table>
+
+  <div class="discovery">
+    <div class="dlabel">🔴 اكتشاف جوهري: محمد بن مروان الذهلي — أهملته كتب الرجال تماماً</div>
+    <h4>٢٣ جليلًا يعتمدون عليه مباشرةً — ولا تقويم له أصلًا!</h4>
+    <p><strong>محمد بن مروان الذهلي البصري</strong> — مُهمَل بالكامل في دراية النور (لا تقويم، لا ترجمة). يعتمد عليه <strong>٢٣ جليلًا</strong> و٣١ ثقة <strong>مباشرةً</strong> (برواية السماع، لا النقل من كتابه)، <strong>٧٤٪</strong> من أسانيده في الفقه الإلزامي، ليس من الممنوعين ولا من المتساهلين. هذه <strong>أقوى قرينة توثيق ضمني</strong> في القاعدة. ومعه: المنهال القصّاب (٩ أجلّاء، ٨٧٪ فقه)، الوليد بن أبان (٩ أجلّاء، ٩٢٪ فقه)، سلمة بن محرز (٧ أجلّاء، ٨١٪ فقه) — كلّهم <strong>بلا تقويم</strong>. قائمة عمل جاهزة للترجمة والتوثيق.</p>
+  </div>
+</div>
+
+<div class="card warn">
+  <h3>⚠ التعارض بين المنع الرجالي وإكثار الأجلّاء</h3>
+  <p>رواة نُصّ على «لا يُكتب حديثه» ومع ذلك يعتمد عليهم أجلّاءُ مباشرةً. <strong>نُبرز التعارض ولا نحسمه:</strong></p>
+  <table>
+    <tr><th>الراوي</th><th>الأجلّاء</th><th>الثقات</th><th>فقه٪</th><th>التقويم</th><th>الحالة</th></tr>
+    <tr><td>⚠ عبد الله بن محمد الحجال</td><td><strong>16</strong></td><td>20</td><td>82٪</td><td><span class="tag daif">ضعیف مصرح امامی</span></td><td>ممنوع «لا يُكتب حديثه»</td></tr><tr><td>⚠ يونس بن ظبيان</td><td><strong>10</strong></td><td>18</td><td>69٪</td><td><span class="tag daif">ضعیف مصرح غیر امامی</span></td><td>ممنوع «لا يُكتب حديثه»</td></tr><tr><td>⚠ محمد بن علي أبو سمينة</td><td><strong>10</strong></td><td>16</td><td>67٪</td><td><span class="tag daif">ضعیف مصرح غیر امامی</span></td><td>ممنوع «لا يُكتب حديثه»</td></tr><tr><td>⚠ الحسن بن علي بن أبي حمزة البطائني</td><td><strong>6</strong></td><td>12</td><td>64٪</td><td><span class="tag daif">ضعیف مصرح غیر امامی</span></td><td>ممنوع «لا يُكتب حديثه»</td></tr><tr><td>⚠ عبد الله بن عبد الرحمن الأصم</td><td><strong>5</strong></td><td>5</td><td>79٪</td><td><span class="tag daif">ضعیف مصرح غیر امامی</span></td><td>ممنوع «لا يُكتب حديثه»</td></tr><tr><td>⚠ وهب بن وهب القرشي</td><td><strong>4</strong></td><td>6</td><td>92٪</td><td><span class="tag daif">ضعیف مصرح غیر امامی</span></td><td>ممنوع «لا يُكتب حديثه»</td></tr>
+  </table>
+</div>
+
+<!-- ════ 6: BOOK FINGERPRINTS ════ -->
+<h2 id="s6">٦. البصمات الكمّية للمخطوطات</h2>
+<div class="card green">
+  <h3>السلاسل المتطابقة تماماً — بصمات فريدة</h3>
+  <table>
+    <tr><th>#</th><th>النسخ</th><th>الطول</th><th>السلسلة الكاملة</th></tr>
+    <tr><td>1</td><td><strong>1289</strong></td><td>2 راوٍ</td><td style="font-size:.82rem">محمد بن علي بن الحسين بن بابويه ← جعفر بن محمد الصادق عليه السلام</td></tr><tr><td>2</td><td><strong>853</strong></td><td>7 راوٍ</td><td style="font-size:.82rem">محمد بن يعقوب الكليني ← علي بن إبراهيم بن هاشم ← إبراهيم بن هاشم القمي ← محمد بن أبي عمير زياد ← حماد بن عثمان الناب ← عبيد الله بن علي الحلبي ← جعفر بن محمد الصادق عليه السلام</td></tr><tr><td>3</td><td><strong>814</strong></td><td>2 راوٍ</td><td style="font-size:.82rem">محمد بن علي بن الحسين بن بابويه ← رسول الله ص</td></tr><tr><td>4</td><td><strong>514</strong></td><td>7 راوٍ</td><td style="font-size:.82rem">محمد بن يعقوب الكليني ← علي بن إبراهيم بن هاشم ← إبراهيم بن هاشم القمي ← الحسين بن يزيد النوفلي ← إسماعيل بن أبي زياد السكوني ← جعفر بن محمد الصادق عليه السلام ← رسول الله ص</td></tr><tr><td>5</td><td><strong>486</strong></td><td>4 راوٍ</td><td style="font-size:.82rem">عبد الله بن جعفر الحميري ← عبد الله بن الحسن بن علي بن جعفر ← علي بن جعفر العريضي ← موسى بن جعفر الكاظم عليه السلام</td></tr><tr><td>6</td><td><strong>377</strong></td><td>2 راوٍ</td><td style="font-size:.82rem">محمد بن علي بن الحسين بن بابويه ← علي أمير المؤمنين عليه السلام</td></tr><tr><td>7</td><td><strong>352</strong></td><td>2 راوٍ</td><td style="font-size:.82rem">علي بن جعفر العريضي ← موسى بن جعفر الكاظم عليه السلام</td></tr><tr><td>8</td><td><strong>339</strong></td><td>6 راوٍ</td><td style="font-size:.82rem">محمد بن يعقوب الكليني ← علي بن إبراهيم بن هاشم ← إبراهيم بن هاشم القمي ← محمد بن أبي عمير زياد ← معاوية بن عمار الدهني ← جعفر بن محمد الصادق عليه السلام</td></tr><tr><td>9</td><td><strong>293</strong></td><td>1 راوٍ</td><td style="font-size:.82rem">محمد بن علي بن الحسين بن بابويه</td></tr><tr><td>10</td><td><strong>276</strong></td><td>10 راوٍ</td><td style="font-size:.82rem">محمد بن الحسن بن علي الطوسي ← علي بن أحمد بن محمد بن طاهر ابن أبي جيد ← محمد بن الحسن بن أحمد بن الوليد ← محمد بن الحسن الصفار ← أحمد بن محمد بن عيسى الأشعري ← الحسين بن سعيد الأهوازي ← محمد بن أبي عمير زياد ← حماد بن عثمان الناب ← عبيد الله بن علي الحلبي ← جعفر بن محمد الصادق عليه السلام</td></tr><tr><td>11</td><td><strong>276</strong></td><td>13 راوٍ</td><td style="font-size:.82rem">محمد بن الحسن بن علي الطوسي ← محمد بن محمد بن النعمان المفيد ← الحسين بن عبيد الله الغضائري ← أحمد بن عبد الواحد ابن عبدون ← أحمد بن محمد بن الحسن بن الوليد ← محمد بن الحسن بن أحمد بن الوليد ← محمد بن الحسن الصفار ← أحمد بن محمد بن عيسى الأشعري ← الحسين بن سعيد الأهوازي ← محمد بن أبي عمير زياد ← حماد بن عثمان الناب ← عبيد الله بن علي الحلبي ← جعفر بن محمد الصادق عليه السلام</td></tr><tr><td>12</td><td><strong>273</strong></td><td>10 راوٍ</td><td style="font-size:.82rem">محمد بن الحسن بن علي الطوسي ← محمد بن محمد بن النعمان المفيد ← جعفر بن محمد بن قولويه ← محمد بن يعقوب الكليني ← علي بن إبراهيم بن هاشم ← إبراهيم بن هاشم القمي ← محمد بن أبي عمير زياد ← حماد بن عثمان الناب ← عبيد الله بن علي الحلبي ← جعفر بن محمد الصادق عليه السلام</td></tr>
+  </table>
+</div>
+
+<!-- ════ 7: TABAQAH ════ -->
+<h2 id="s7">٧. توزيع الطبقات — خريطة الأجيال العلمية</h2>
+<div class="card">
+  <h3>6,958 راوياً عبر ١٢ طبقة</h3>
+  <div style="margin:3px 0"><strong>ط 1</strong>: 305 راوٍ (4.4٪) <span style="display:inline-block;width:52px;height:16px;background:var(--accent);border-radius:3px;vertical-align:middle;margin-right:4px"></span></div><div style="margin:3px 0"><strong>ط 2</strong>: 313 راوٍ (4.5٪) <span style="display:inline-block;width:54px;height:16px;background:var(--accent);border-radius:3px;vertical-align:middle;margin-right:4px"></span></div><div style="margin:3px 0"><strong>ط 3</strong>: 282 راوٍ (4.1٪) <span style="display:inline-block;width:48px;height:16px;background:var(--accent);border-radius:3px;vertical-align:middle;margin-right:4px"></span></div><div style="margin:3px 0"><strong>ط 4</strong>: 532 راوٍ (7.6٪) <span style="display:inline-block;width:92px;height:16px;background:var(--accent);border-radius:3px;vertical-align:middle;margin-right:4px"></span></div><div style="margin:3px 0"><strong>ط 5</strong>: 2,305 راوٍ (33.1٪) <span style="display:inline-block;width:400px;height:16px;background:var(--accent);border-radius:3px;vertical-align:middle;margin-right:4px"></span></div><div style="margin:3px 0"><strong>ط 6</strong>: 1,131 راوٍ (16.3٪) <span style="display:inline-block;width:196px;height:16px;background:var(--accent);border-radius:3px;vertical-align:middle;margin-right:4px"></span></div><div style="margin:3px 0"><strong>ط 7</strong>: 901 راوٍ (12.9٪) <span style="display:inline-block;width:156px;height:16px;background:var(--accent);border-radius:3px;vertical-align:middle;margin-right:4px"></span></div><div style="margin:3px 0"><strong>ط 8</strong>: 626 راوٍ (9.0٪) <span style="display:inline-block;width:108px;height:16px;background:var(--accent);border-radius:3px;vertical-align:middle;margin-right:4px"></span></div><div style="margin:3px 0"><strong>ط 9</strong>: 357 راوٍ (5.1٪) <span style="display:inline-block;width:61px;height:16px;background:var(--accent);border-radius:3px;vertical-align:middle;margin-right:4px"></span></div><div style="margin:3px 0"><strong>ط 10</strong>: 132 راوٍ (1.9٪) <span style="display:inline-block;width:22px;height:16px;background:var(--accent);border-radius:3px;vertical-align:middle;margin-right:4px"></span></div><div style="margin:3px 0"><strong>ط 11</strong>: 51 راوٍ (0.7٪) <span style="display:inline-block;width:8px;height:16px;background:var(--accent);border-radius:3px;vertical-align:middle;margin-right:4px"></span></div><div style="margin:3px 0"><strong>ط 12</strong>: 23 راوٍ (0.3٪) <span style="display:inline-block;width:3px;height:16px;background:var(--accent);border-radius:3px;vertical-align:middle;margin-right:4px"></span></div>
+  <p style="margin-top:16px"><strong>الطبقة الخامسة</strong> (عصر الإمام الصادق عليه السلام) تستحوذ على <strong>33٪</strong> — ذروة الإنتاج العلمي الإمامي.</p>
+</div>
+
+<!-- ════ 8: ISQAT ════ -->
+<h2 id="s8">٨. الإسقاط الممنهج (isqāt)</h2>
+<div class="card red">
+  <table>
+    <tr><th>#</th><th>التكرار</th><th>الطالب</th><th>طبقته</th><th>الشيخ</th><th>طبقته</th><th>التشخيص</th></tr>
+    <tr><td>1</td><td><strong>3,180</strong></td><td>محمد بن الحسن بن علي الطوسي</td><td>ط12</td><td>محمد بن يعقوب الكليني</td><td>ط9</td><td><span class="tag daif">فجوة 3</span></td></tr><tr><td>2</td><td><strong>3,144</strong></td><td>محمد بن الحسن بن علي الطوسي</td><td>ط12</td><td>الحسين بن سعيد الأهوازي</td><td>ط5</td><td><span class="tag daif">فجوة 7</span></td></tr><tr><td>3</td><td><strong>1,655</strong></td><td>محمد بن الحسن بن علي الطوسي</td><td>ط12</td><td>أحمد بن محمد بن عيسى الأشعري</td><td>ط7</td><td><span class="tag daif">فجوة 5</span></td></tr><tr><td>4</td><td><strong>1,472</strong></td><td>أحمد بن عبد الواحد ابن عبدون</td><td>ط11</td><td>علي بن محمد بن الزبير</td><td>ط8</td><td><span class="tag daif">فجوة 3</span></td></tr><tr><td>5</td><td><strong>1,193</strong></td><td>محمد بن الحسن بن علي الطوسي</td><td>ط12</td><td>محمد بن أحمد بن يحيى بن عمران الأشعري</td><td>ط7</td><td><span class="tag daif">فجوة 5</span></td></tr><tr><td>6</td><td><strong>956</strong></td><td>محمد بن الحسن بن علي الطوسي</td><td>ط12</td><td>محمد بن علي بن محبوب</td><td>ط7</td><td><span class="tag daif">فجوة 5</span></td></tr><tr><td>7</td><td><strong>809</strong></td><td>محمد بن الحسن بن علي الطوسي</td><td>ط12</td><td>علي بن إبراهيم بن هاشم</td><td>ط8</td><td><span class="tag daif">فجوة 4</span></td></tr><tr><td>8</td><td><strong>775</strong></td><td>محمد بن الحسن بن علي الطوسي</td><td>ط12</td><td>سعد بن عبد الله القمي</td><td>ط8</td><td><span class="tag daif">فجوة 4</span></td></tr><tr><td>9</td><td><strong>664</strong></td><td>محمد بن الحسن بن علي الطوسي</td><td>ط12</td><td>علي بن الحسن بن علي بن فضال</td><td>ط7</td><td><span class="tag daif">فجوة 5</span></td></tr><tr><td>10</td><td><strong>650</strong></td><td>محمد بن الحسن بن علي الطوسي</td><td>ط12</td><td>موسى بن القاسم البجلي</td><td>ط7</td><td><span class="tag daif">فجوة 5</span></td></tr><tr><td>11</td><td><strong>539</strong></td><td>محمد بن الحسن بن علي الطوسي</td><td>ط12</td><td>الحسن بن محبوب السراد</td><td>ط6</td><td><span class="tag daif">فجوة 6</span></td></tr><tr><td>12</td><td><strong>492</strong></td><td>محمد بن يعقوب الكليني</td><td>ط9</td><td>علي بن الحكم الأنباري</td><td>ط6</td><td><span class="tag daif">فجوة 3</span></td></tr>
+  </table>
+</div>
+
+<!-- ════ 9: CHAIN HEALTH ════ -->
+<h2 id="s9">٩. صحة الأسانيد الإجمالية</h2>
+<div class="stat-grid">
+  <div class="stat"><div class="num">183,295</div><div class="lbl">سنداً</div></div>
+  <div class="stat"><div class="num">1,501,277</div><div class="lbl">موقعاً راوياً</div></div>
+  <div class="stat"><div class="num">95.3٪</div><div class="lbl">تنتهي بمعصوم</div></div>
+  <div class="stat"><div class="num">8.2</div><div class="lbl">متوسط الطول</div></div>
+</div>
+<div class="card">
+  <div style="margin:6px 0"><span style="display:inline-block;width:20px;height:16px;background:var(--thiqa);border-radius:3px;margin-left:8px;vertical-align:middle"></span> <strong>ثقة</strong>: 1,533 (77.0٪) <span style="display:inline-block;width:230px;height:14px;background:var(--thiqa);border-radius:3px;vertical-align:middle;margin-right:4px"></span></div><div style="margin:6px 0"><span style="display:inline-block;width:20px;height:16px;background:#9e9e9e;border-radius:3px;margin-left:8px;vertical-align:middle"></span> <strong>غير معروف</strong>: 34 (1.7٪) <span style="display:inline-block;width:5px;height:14px;background:#9e9e9e;border-radius:3px;vertical-align:middle;margin-right:4px"></span></div><div style="margin:6px 0"><span style="display:inline-block;width:20px;height:16px;background:var(--majhul);border-radius:3px;margin-left:8px;vertical-align:middle"></span> <strong>مجهول/مهمل</strong>: 0 (0.0٪) <span style="display:inline-block;width:2px;height:14px;background:var(--majhul);border-radius:3px;vertical-align:middle;margin-right:4px"></span></div><div style="margin:6px 0"><span style="display:inline-block;width:20px;height:16px;background:var(--daif);border-radius:3px;margin-left:8px;vertical-align:middle"></span> <strong>ضعيف</strong>: 410 (20.6٪) <span style="display:inline-block;width:61px;height:14px;background:var(--daif);border-radius:3px;vertical-align:middle;margin-right:4px"></span></div><div style="margin:6px 0"><span style="display:inline-block;width:20px;height:16px;background:var(--hasan);border-radius:3px;margin-left:8px;vertical-align:middle"></span> <strong>حسن/ممدوح</strong>: 0 (0.0٪) <span style="display:inline-block;width:2px;height:14px;background:var(--hasan);border-radius:3px;vertical-align:middle;margin-right:4px"></span></div><div style="margin:6px 0"><span style="display:inline-block;width:20px;height:16px;background:var(--gold);border-radius:3px;margin-left:8px;vertical-align:middle"></span> <strong>معصوم</strong>: 15 (0.8٪) <span style="display:inline-block;width:2px;height:14px;background:var(--gold);border-radius:3px;vertical-align:middle;margin-right:4px"></span></div><div style="margin:6px 0"><span style="display:inline-block;width:20px;height:16px;background:var(--mukhtalaf);border-radius:3px;margin-left:8px;vertical-align:middle"></span> <strong>مختلف فيه</strong>: 0 (0.0٪) <span style="display:inline-block;width:2px;height:14px;background:var(--mukhtalaf);border-radius:3px;vertical-align:middle;margin-right:4px"></span></div><div style="margin:6px 0"><span style="display:inline-block;width:20px;height:16px;background:var(--muwathaq);border-radius:3px;margin-left:8px;vertical-align:middle"></span> <strong>موثّق</strong>: 0 (0.0٪) <span style="display:inline-block;width:2px;height:14px;background:var(--muwathaq);border-radius:3px;vertical-align:middle;margin-right:4px"></span></div>
+</div>
+
+<!-- ════ 10: NOVEL DISCOVERIES ════ -->
+<h2 id="s10">١٠. اكتشافات جديدة جوهرية</h2>
+
+<div class="discovery">
+  <div class="dlabel">🔴 ١. محمد بن مروان الذهلي — اكتشاف راوٍ مُهمَل يستحقّ التوثيق</div>
+  <p><strong>بلا تقويم أصلًا</strong> في دراية النور. ٢٣ جليلًا يعتمدون عليه مباشرةً (سماعاً لا نقلاً من كتابه). ٧٤٪ فقه إلزامي. نظيف من الموانع. أقوى قرينة توثيق ضمني في القاعدة. معه ٤ رواة آخرون مهملون يستحقّون الترجمة والتقويم.</p>
+</div>
+
+<div class="discovery">
+  <div class="dlabel">🔴 ٢. أول مؤشّر توثيق ضمني كمّي في التاريخ الرجالي الإمامي</div>
+  <p>١٥ راوياً مصنّفون «ضعيف» أو «بلا تقويم»، لكن ٧-٢٣ جليلًا يعتمدون عليهم <strong>مباشرةً</strong> في الفقه — بعد استبعاد النزول (الأخذ من الكتب) وإسقاط المتساهلين، وفق المعيار المنهجيّ المقرَّر.</p>
+</div>
+
+<div class="discovery">
+  <div class="dlabel">🔴 ٣. النزول بتعريفه الصحيح — منهجية جديدة للتمييز بين السماع والأخذ من الكتب</div>
+  <p>طبّقنا تعريف النزول الصحيح (الرواية عن <strong>قرين في نفس الطبقة</strong> = أخذ من كتابه). استطعنا فرز ١,٤١٠ راوياً غير موثّقين إلى: مَن اعتمد عليه الأجلّاء سماعاً (التوثيق الضمني) ومَن كان واسطة كتاب (لا تدلّ روايتهم على توثيق).</p>
+</div>
+
+<div class="discovery">
+  <div class="dlabel">🔴 ٤. سُمعة الكشّي والعيّاشي مبالغ فيها</div>
+  <p>نسبة شيوخهم الضعفاء ٢-٣٪ فقط — من أدنى النسب. وصفهم بـ «يروي عن الضعفاء كثيراً» لا تدعمه البيانات.</p>
+</div>
+
+<div class="discovery">
+  <div class="dlabel">🔴 ٥. سلسلة الكافي السباعية — ٨٥٣ نسخة متطابقة</div>
+  <p>الكليني ← الهاشمي ← القمي ← ابن أبي عمير ← حماد بن عثمان ← الحلبي ← الصادق عليه السلام. الأكثر نسخاً في التراث الإمامي.</p>
+</div>
+
+<div class="discovery">
+  <div class="dlabel">🔴 ٦. تطوّر التقييم الرجالي عبر الزمن</div>
+  <p>جميع «الضعفاء» عند ابن الغضائري (ق ٥) هم ثقات في دراية النور (ق ١٥) — دليل على تطوّر المنهج من التشديد إلى التوثيق العام.</p>
+</div>
+
+<!-- ════ 11: CONCLUSION ════ -->
+<h2 id="s11">الخاتمة والخلاصة</h2>
+<div class="card gold">
+  <p style="font-size:1.1rem; line-height:2">
+    قرائنُ الرجال والدراية صالحةٌ للتطبيق الآليّ على قاعدة الأسانيد، وتؤكّدها البيانات وتضيف إليها اكتشافاتٍ كمّيّةً جديدة.<br><br>
+    <strong>أبرز النتائج:</strong> العوائل العلمية (١٤ عائلة)، والتعليق (٢٤ سلسلة فقط في الكافي لا تبدأ بالكليني)، ووسائط يونس عن أبي بصير، والنزول (الرواية عن القرين).<br><br>
+    <strong>أبرز التوسّعات:</strong> التوثيق الضمني المصحَّح (فارق ١-٢ طبقة، ٣ طبقات تمييز)، واكتشاف محمد بن مروان الذهلي (٢٣ جليلًا، بلا تقويم)، والتصنيف الكمّي لـ «ثقة يروي عن الضعفاء».<br><br>
+    <strong>المنهجية:</strong> الثقات المعتمِدون يُحتسَبون فقط إذا كانوا مباشرين (فارق ١-٢ طبقة = سماع)، مع استبعاد النزول (نفس الطبقة = أخذ من كتاب) والبُعد (≥٣ طبقات)، وإسقاط المتساهلين، واشتراط ≥٥٠٪ فقه إلزامي.<br><br>
+    <strong>قاعدة البيانات:</strong> 6,958 راوياً · 183,295 سنداً · 1,501,277 موقعاً راوياً<br>
+    <strong>المنهج:</strong> Python + SQLite + تحليل الشبكات + الإحصاء<br>
+    <strong>الإعداد:</strong> موسوعة الرجال
+  </p>
+</div>
+
+</body>
+</html>
