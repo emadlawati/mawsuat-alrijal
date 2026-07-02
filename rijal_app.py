@@ -502,6 +502,23 @@ STUDY_GROUPS = [
         {"file": "defect_triage", "title": "فرز العلل وتصنيفها",
          "desc": "تصنيف مرشّحات السقط: مُرسَل، تعليق، مشيخة، أم سقطٌ حقيقيّ — مع أرجح واسطة."},
     ]),
+    ("⑤ الموضوعات والفقه — تصنيف الأسانيد", [
+        {"file": "topic_atlas", "title": "الأطلس الموضوعيّ التفاعليّ",
+         "desc": "ابحث عن أيّ راوٍ لعرض بصمته الموضوعيّة الكاملة، مع الدراسات الستّ قابلةً للفرز والتصفية.",
+         "badge": "تفاعليّ"},
+        {"file": "study_topic_rank", "title": "المكثرون والمقلّون في التصنيف",
+         "desc": "ترتيب الرواة بمجموع ظهورهم في الأسانيد المصنَّفة موضوعيًّا، وأعمدةُ كلّ باب."},
+        {"file": "study_fiqh_ratio", "title": "نسبة الفقه عند المكثرين",
+         "desc": "حصّةُ الرواية الفقهيّة من غيرها، وأبرزُ المائلين نسبيًّا إلى العقائد والفضائل."},
+        {"file": "study_ghulat_fiqh", "title": "الغلاة والفقه",
+         "desc": "اختبارُ قِلّة رواية المَرميّين بالغلوّ في الفقه — بدلالةٍ إحصائيّة (مان-ويتني)."},
+        {"file": "study_topic_weakness", "title": "خريطة ضعف الأسانيد بحسب الموضوع",
+         "desc": "أيّ الأبواب أكثرُ مرورًا بالضعفاء والمجاهيل، حتى مستوى الباب التفصيليّ."},
+        {"file": "study_topic_bottleneck", "title": "نقاط الاختناق الموضوعيّة",
+         "desc": "الرواةُ الذين تمرّ بهم الحصّةُ الأكبر من أسانيد كلّ باب (العُقَد التي يصعب تعويضها)."},
+        {"file": "study_specialization", "title": "بصمة التخصّص الموضوعيّ",
+         "desc": "مقياسُ تركّز الراوي على بابٍ واحد — قرينةُ أصلٍ/كتابٍ في ذلك الباب."},
+    ]),
 ]
 _STUDY_BY_FILE = {it['file']: it for _, items in STUDY_GROUPS for it in items}
 
@@ -537,7 +554,7 @@ def page_studies():
             st.warning("تعذّر تحميل هذه الدراسة."); return
         st.download_button("⬇ تحميل التقرير (HTML)", data=html.encode('utf-8'),
                            file_name=f"{file}.html", mime="text/html", key="study_dl")
-        _components.html(html, height=900, scrolling=True)
+        _components.html(html, height=(1250 if file == 'topic_atlas' else 900), scrolling=True)
         return
     for group, items in STUDY_GROUPS:
         st.markdown(f"<div class='r-studygroup'>{group}</div>", unsafe_allow_html=True)
