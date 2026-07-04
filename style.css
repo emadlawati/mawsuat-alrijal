@@ -187,15 +187,28 @@ a.r-row .nm2 { flex: 1; }
 
 /* ============ MOBILE ============ */
 @media (max-width: 640px) {
-  .main .block-container { padding-left: .6rem; padding-right: .6rem; }
+  .main .block-container { padding-left: .55rem; padding-right: .55rem; padding-top: .4rem; }
   div[data-testid="column"] { min-width: 100% !important; flex: 1 1 100% !important; }
-  .r-name { font-size: 1.25rem; }
-  .r-hero h1 { font-size: 1.5rem; }
+  .r-name { font-size: 1.22rem; }
+  .r-hero h1 { font-size: 1.4rem; }  .r-hero p { font-size: .86rem; }
   .r-card { padding: 13px 15px; }
-  .r-bookpage { padding: 16px 18px; font-size: 1.06rem; }
+  .r-bookpage { padding: 16px 18px; font-size: 1.04rem; }
   .isnad-node { min-width: 0; width: 100%; }
-  .r-stat { flex: 1 1 40%; }
+  .r-statband { gap: 8px; }
+  .r-stat { flex: 1 1 44%; max-width: none; padding: 9px 6px; }
+  .r-chip, .r-pill { font-size: .74rem; padding: 2px 8px; }
+  .r-intro, .r-verify { font-size: .82rem; line-height: 1.62; }
+  .r-tile { padding: 12px 14px; }  .r-tile .t { font-size: .96rem; }  .r-tile .a { font-size: .76rem; }
+  .r-studygroup { font-size: .95rem; }
   .stButton button { width: 100%; }
+  /* top navigation (segmented control): let it scroll instead of overflowing */
+  div[data-testid="stSegmentedControl"] { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  div[data-testid="stSegmentedControl"] * { font-size: .76rem !important; }
+  /* profile tabs */
+  .stTabs [data-baseweb="tab"] { padding: 6px 8px; }
+  .stTabs [data-baseweb="tab"] p { font-size: .82rem; }
+  /* keep embedded study/atlas iframes full-width */
+  iframe { max-width: 100% !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {
