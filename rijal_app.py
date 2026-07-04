@@ -55,7 +55,7 @@ for k, v in [('d_id', None), ('cur_book', None), ('chain_id', None), ('lib_page'
              ('bk_page', None), ('is_res', None), ('study', None)]:
     ss.setdefault(k, v)
 
-NAV = ["🏠 الرئيسية", "🔎 الرواة", "📚 الكتب", "🔗 الأسانيد", "📊 الدراسات"]
+NAV = ["🏠 الرئيسية", "🔎 الرواة", "📚 الكتب", "🔗 الأسانيد", "🗺️ موضوعات الرواة", "📊 الدراسات"]
 ss.setdefault('nav', NAV[0])
 
 # ---- deep links (must run before the nav widget) ----
@@ -149,13 +149,11 @@ def render_profile(d_id):
         st.warning("لم يُعثر على الراوي."); return
     if st.button("↩ رجوع للنتائج", key=f"back_{d_id}"):
         ss['d_id'] = None; st.rerun()
-    khoei = db.khoei_eval(d_id)
     flag = db.eval_flag(d_id)
 
     chips = ''
     if n['is_masum']: chips += ui.chip('🌟 معصوم', 'var(--gold)')
     if n['evals']: chips += ui.verdict_chip(n['evals'][0]['verdict'])
-    if khoei: chips += ui.verdict_chip(khoei['verdict'], prefix='الخوئي: ')
     chips += ui.tabaqah_chip(n['tabaqah'])
     pills = ''
     if n['kunya']: pills += ui.pill("الكنية: " + n['kunya'].split(chr(10))[0][:42])
@@ -184,13 +182,8 @@ def render_profile(d_id):
         if ev['aggregate']: body += f"<b>جمع التقويم:</b> {ev['aggregate']}<br>"
         if ev['jarh_tadil']: body += ui.quote(ev['jarh_tadil'])
         st.markdown(ui.card(f"<b>📊 تقويم دراية النور</b><br>{body}"), unsafe_allow_html=True)
-    if khoei:
-        body = f"<b>الحكم:</b> {khoei['verdict']}<br>"
-        if khoei['quote']: body += ui.quote(khoei['quote'])
-        st.markdown(ui.card(f"<b>📗 تقويم السيد الخوئي (المفيد من معجم رجال الحديث)</b><br>{body}"),
-                    unsafe_allow_html=True)
-    if not n['evals'] and not khoei and not n['is_masum']:
-        st.caption("لا يوجد تقويم في دراية النور ولا في المفيد لهذا الراوي.")
+    if not n['evals'] and not n['is_masum']:
+        st.caption("لا يوجد تقويم في دراية النور لهذا الراوي.")
 
     tabs = st.tabs(["🧑‍🏫 الشيوخ والتلاميذ", "🕸️ شبكة الرواية", "📈 الخطّ الزمني", "📚 في الكتب", "📛 الأسماء والألقاب"])
     with tabs[0]:
@@ -299,7 +292,6 @@ def page_home():
         return
     st.markdown(ui.statband([
         (f"{s['narrators']:,}", "راوياً"), (f"{s['evals']:,}", "تقويم دراية النور"),
-        (f"{s.get('khoei', 0):,}", "تقويم السيد الخوئي"),
         (f"{s['tabaqah']:,}", "راوياً معلوم الطبقة"),
         (f"{s['chains']:,}", "سنداً"), (f"{s['entries']:,}", "ترجمة من {} كتب".format(s['books'])),
     ]), unsafe_allow_html=True)
@@ -503,9 +495,6 @@ STUDY_GROUPS = [
          "desc": "تصنيف مرشّحات السقط: مُرسَل، تعليق، مشيخة، أم سقطٌ حقيقيّ — مع أرجح واسطة."},
     ]),
     ("⑤ الموضوعات والفقه — تصنيف الأسانيد", [
-        {"file": "topic_atlas", "title": "الأطلس الموضوعيّ التفاعليّ",
-         "desc": "ابحث عن أيّ راوٍ لعرض بصمته الموضوعيّة الكاملة، مع الدراسات الستّ قابلةً للفرز والتصفية.",
-         "badge": "تفاعليّ"},
         {"file": "study_topic_rank", "title": "المكثرون والمقلّون في التصنيف",
          "desc": "ترتيب الرواة بمجموع ظهورهم في الأسانيد المصنَّفة موضوعيًّا، وأعمدةُ كلّ باب."},
         {"file": "study_fiqh_ratio", "title": "نسبة الفقه عند المكثرين",
@@ -530,6 +519,27 @@ def _study_html(file):
     if 'fonts.googleapis' not in html:
         html = html.replace('</head>', _STUDY_FONTS + '</head>', 1)
     return html
+
+def page_atlas():
+    st.subheader("🗺️ موضوعات الرواة")
+    st.markdown(
+        "<div class='r-intro'>"
+        "<div>🔎 <b>ما هذه الأداة؟</b> أداةٌ تفاعليّة تُصنِّف أسانيد الكتب الحديثيّة بحسب <b>موضوعها</b> "
+        "(فقه، عقائد، دعاء، فضائل، أخلاق) وأبوابها (طهارة، صلاة، حج، نكاح…)، ثمّ تُظهر لكلّ راوٍ بصمتَه الموضوعيّة.</div>"
+        "<div>🧭 <b>ماذا تفعل؟</b> ابحث عن أيّ راوٍ لترى: في أيّ الأبواب يروي، ونسبةَ روايته الفقهيّة، "
+        "وتخصّصَه أو سعتَه، ومَن رماه الرجاليّون بالغلوّ (مع النصّ ومصدره).</div>"
+        "<div>📊 <b>وفيها ستّ دراسات</b> قابلةٌ للفرز والتصفية: المكثرون، نسبة الفقه، الغلاة والفقه، خريطة ضعف الأسانيد، نقاط الاختناق، بصمة التخصّص.</div>"
+        "</div>", unsafe_allow_html=True)
+    st.markdown(
+        "<div class='r-verify'>⚠️ أداةٌ بحثيّة للاستئناس والاستكشاف لا للحكم النهائيّ — التصنيف مستخرَجٌ آليًّا من "
+        "فهارس الكتب، ونسبةُ الفقه نسبيّةٌ (المدوّنة فقهيّة الطابع)، فيُرجى دائماً الرجوع إلى المصدر الأصليّ والتحقّق منه.</div>",
+        unsafe_allow_html=True)
+    html = _study_html('topic_atlas')
+    if not html:
+        st.warning("تعذّر تحميل الأداة."); return
+    st.download_button("⬇ تحميل الأداة (HTML)", data=html.encode('utf-8'),
+                       file_name="topic_atlas.html", mime="text/html", key="atlas_dl")
+    _components.html(html, height=1250, scrolling=True)
 
 def page_studies():
     st.subheader("📊 الدراسات")
@@ -573,10 +583,10 @@ with st.sidebar:
     st.markdown("## 📜 موسوعة الرجال")
     s = db.global_stats()
     st.caption(f"{s['narrators']:,} راوٍ · {s['books']} كتب · {s['chains']:,} سند\n\n"
-               f"التقويم: {s['evals']:,} (دراية النور) + {s.get('khoei', 0):,} (السيد الخوئي)\n\n"
+               f"التقويم: {s['evals']:,} (دراية النور)\n\n"
                f"الطبقات: {s['tabaqah']:,} راوياً")
     st.divider()
     st.caption("المصادر: دراية النور ٣ (CRCIS) · كتب الرجال العشرة · ألف رجل")
 
 {NAV[0]: page_home, NAV[1]: page_library, NAV[2]: page_books, NAV[3]: page_isnad,
- NAV[4]: page_studies}[nav]()
+ NAV[4]: page_atlas, NAV[5]: page_studies}[nav]()
