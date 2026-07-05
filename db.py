@@ -6,14 +6,14 @@ import streamlit as st
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _CORE = os.path.join(os.path.dirname(_HERE), 'rijal_core.db')   # local development (live data)
-_PUBLIC = os.path.join(_HERE, 'rijal_public_v15.db')           # versioned cache → re-downloads on bump
+_PUBLIC = os.path.join(_HERE, 'rijal_public_v16.db')           # versioned cache → re-downloads on bump
 # Deployed app downloads the DB from a GitHub Release asset on first boot.
-# v1.5 = al-Mufid matched by the order-aware LLM matcher (5,101 entries / 2,971 Khoei verdicts at ≥0.90);
-# v1.4 = exact-name matching; v1.3 = isnad beam-search + chain n-grams.
+# v1.6 = authoritative _dataset ingest: chain_meta (official grading/subject/اتصال) + narrator_grading
+#        + bio_locations; v1.5 = al-Mufid LLM matching + Khoei verdicts; v1.4 = exact-name matching.
 DB_URLS = [
+    "https://github.com/emadlawati/mawsuat-alrijal/releases/download/v1.6/rijal_public.db",
     "https://github.com/emadlawati/mawsuat-alrijal/releases/download/v1.5/rijal_public.db",
     "https://github.com/emadlawati/mawsuat-alrijal/releases/download/v1.4/rijal_public.db",
-    "https://github.com/emadlawati/mawsuat-alrijal/releases/download/v1.3/rijal_public.db",
 ]
 
 def _ensure_db():
@@ -599,6 +599,24 @@ def khoei_eval(d_id):
 
 def mufid_eval(d_id):   # backwards-compat alias
     return khoei_eval(d_id)
+
+# ---------- official per-chain grading rollup (Dirayah SanadEvaluation, from _dataset export) ----------
+@st.cache_data
+def narrator_grading(d_id):
+    """{'total','sahih','muwathaq','daif_jahala','daif','top_imams':[(name,count)...]} or None."""
+    c = _conn()
+    try:
+        r = c.execute("SELECT total, sahih, muwathaq, daif_jahala, daif, top_imams "
+                      "FROM narrator_grading WHERE d_id=?", (d_id,)).fetchone()
+    except Exception:
+        return None
+    if not r: return None
+    d = dict(r)
+    try:
+        d['top_imams'] = json.loads(d['top_imams']) if d['top_imams'] else []
+    except Exception:
+        d['top_imams'] = []
+    return d
 
 @st.cache_data
 def eval_flag(d_id):

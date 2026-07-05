@@ -185,6 +185,21 @@ def render_profile(d_id):
     if not n['evals'] and not n['is_masum']:
         st.caption("لا يوجد تقويم في دراية النور لهذا الراوي.")
 
+    # official per-chain grading rollup (Dirayah SanadEvaluation)
+    ng = db.narrator_grading(d_id)
+    if ng and ng['total']:
+        t = ng['total']
+        parts = []
+        for lbl, key, col in (("صحيح", 'sahih', 'var(--thiqa)'), ("موثق/معتبر", 'muwathaq', 'var(--muwathaq)'),
+                              ("ضعيف بجهالة", 'daif_jahala', 'var(--majhul)'), ("ضعيف", 'daif', 'var(--daif)')):
+            v = ng[key] or 0
+            if v: parts.append(f"<span style='color:{col};font-weight:700'>{lbl} {100*v/t:.0f}%</span> <span class='r-sub'>({v:,})</span>")
+        imams = ' · '.join(f"{nm.replace(' عليه السلام','').replace(' عليها السلام','')} <span class='r-sub'>({c:,})</span>"
+                           for nm, c in (ng['top_imams'] or [])[:3])
+        body = f"وُزِّعت أسانيدُه ({t:,}) على التقييم الرسميّ: " + ' · '.join(parts)
+        if imams: body += f"<br><b>عمّن يروي من المعصومين:</b> {imams}"
+        st.markdown(ui.card(f"<b>⚖️ أسانيده في التقييم الرسميّ (دراية)</b><br>{body}"), unsafe_allow_html=True)
+
     tabs = st.tabs(["🧑‍🏫 الشيوخ والتلاميذ", "🕸️ شبكة الرواية", "📈 الخطّ الزمني", "📚 في الكتب", "📛 الأسماء والألقاب"])
     with tabs[0]:
         c1, c2 = st.columns(2)
@@ -507,6 +522,12 @@ STUDY_GROUPS = [
          "desc": "الرواةُ الذين تمرّ بهم الحصّةُ الأكبر من أسانيد كلّ باب (العُقَد التي يصعب تعويضها)."},
         {"file": "study_specialization", "title": "بصمة التخصّص الموضوعيّ",
          "desc": "مقياسُ تركّز الراوي على بابٍ واحد — قرينةُ أصلٍ/كتابٍ في ذلك الباب."},
+        {"file": "study_imam_topics", "title": "خريطة الأئمة والموضوعات",
+         "desc": "توزيع ما رُوي عن كلّ معصومٍ على الأبواب، ونسبةُ الصحيح من أسانيده."},
+        {"file": "study_grading_methods", "title": "منهجا التقييم — أضعف الرواة والتقييم الرسميّ",
+         "desc": "أين يتوافق حكمُ «بأضعف رواته» مع تقييم دراية الرسميّ وأين يفترقان — والإرسالُ سرُّ الفرق."},
+        {"file": "dataset_validation", "title": "التحقّق من البيانات",
+         "desc": "مقارنة طبقاتنا المستنبَطة سابقًا بالتصدير المعتمد الكامل: الموضوعات، التقييم، الاتصال، المطابقة."},
     ]),
 ]
 _STUDY_BY_FILE = {it['file']: it for _, items in STUDY_GROUPS for it in items}
