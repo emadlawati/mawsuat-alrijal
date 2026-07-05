@@ -6,12 +6,12 @@ import streamlit as st
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _CORE = os.path.join(os.path.dirname(_HERE), 'rijal_core.db')   # local development (live data)
-_PUBLIC = os.path.join(_HERE, 'rijal_public_v17.db')           # versioned cache → re-downloads on bump
+_PUBLIC = os.path.join(_HERE, 'rijal_public_v18.db')           # versioned cache → re-downloads on bump
 # Deployed app downloads the DB from a GitHub Release asset on first boot.
 # v1.6 = authoritative _dataset ingest: chain_meta (official grading/subject/اتصال) + narrator_grading
 #        + bio_locations; v1.5 = al-Mufid LLM matching + Khoei verdicts; v1.4 = exact-name matching.
 DB_URLS = [
-    "https://github.com/emadlawati/mawsuat-alrijal/releases/download/v1.7/rijal_public.db",
+    "https://github.com/emadlawati/mawsuat-alrijal/releases/download/v1.8/rijal_public.db",
     "https://github.com/emadlawati/mawsuat-alrijal/releases/download/v1.5/rijal_public.db",
     "https://github.com/emadlawati/mawsuat-alrijal/releases/download/v1.4/rijal_public.db",
 ]
@@ -46,6 +46,9 @@ BOOK_TITLES = {
     'alf_rajul': 'ألف رجل (الطبقات)', 'mujam_khoei': 'معجم رجال الحديث (الخوئي)',
     'wafi_asaneed': 'الوافي في تحقيق أسناد الكافي',
     'mufid_mujam': 'المفيد من معجم رجال الحديث (الجواهري)',
+    'jami_ruwat': 'جامع الرواة (الأردبيلي)', 'manhaj_maqal': 'منهج المقال (الأسترابادي)',
+    'uddat_rijal': 'عدة الرجال (الأعرجي الكاظمي)', 'taliqat_zanjani': 'التعليقات الرجالية (الشبيري)',
+    'kashf_niqab': 'كشف النقاب (الشبيري)',
 }
 TAB_AR = {1:'الأولى',2:'الثانية',3:'الثالثة',4:'الرابعة',5:'الخامسة',6:'السادسة',7:'السابعة',
           8:'الثامنة',9:'التاسعة',10:'العاشرة',11:'الحادية عشرة',12:'الثانية عشرة'}
