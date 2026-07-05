@@ -188,15 +188,15 @@ def render_profile(d_id):
     # official per-chain grading rollup (Dirayah SanadEvaluation)
     ng = db.narrator_grading(d_id)
     if ng and ng['total']:
-        t = ng['total']
+        gt = ng['total']
         parts = []
         for lbl, key, col in (("صحيح", 'sahih', 'var(--thiqa)'), ("موثق/معتبر", 'muwathaq', 'var(--muwathaq)'),
                               ("ضعيف بجهالة", 'daif_jahala', 'var(--majhul)'), ("ضعيف", 'daif', 'var(--daif)')):
             v = ng[key] or 0
-            if v: parts.append(f"<span style='color:{col};font-weight:700'>{lbl} {100*v/t:.0f}%</span> <span class='r-sub'>({v:,})</span>")
+            if v: parts.append(f"<span style='color:{col};font-weight:700'>{lbl} {100*v/gt:.0f}%</span> <span class='r-sub'>({v:,})</span>")
         imams = ' · '.join(f"{nm.replace(' عليه السلام','').replace(' عليها السلام','')} <span class='r-sub'>({c:,})</span>"
                            for nm, c in (ng['top_imams'] or [])[:3])
-        body = f"وُزِّعت أسانيدُه ({t:,}) على التقييم الرسميّ: " + ' · '.join(parts)
+        body = f"وُزِّعت أسانيدُه ({gt:,}) على التقييم الرسميّ: " + ' · '.join(parts)
         if imams: body += f"<br><b>عمّن يروي من المعصومين:</b> {imams}"
         st.markdown(ui.card(f"<b>⚖️ أسانيده في التقييم الرسميّ (دراية)</b><br>{body}"), unsafe_allow_html=True)
 
@@ -229,6 +229,18 @@ def render_profile(d_id):
             with st.expander(f"{db.BOOK_TITLES.get(b['book_id'], b['book_id'])} — ص{b['page'] or '؟'}"):
                 st.markdown(ui.quote(b['text'] or '—'), unsafe_allow_html=True)
         if not shown: st.caption("لا توجد ترجمة مستخرجة في الكتب لهذا الراوي.")
+        # authoritative Dirayah bio-location index — additional rijāl books (location only, no full text yet)
+        nbks = db.narrator_books(d_id)
+        have = {b['book_id'] for b in n['books']}
+        extra = [x for x in nbks if not (x['has_text'] and x['book_code'] in have)]
+        if extra:
+            def loc(x):
+                v = f"ج{x['vol']} " if x['vol'] and str(x['vol']) not in ('', '1') else ''
+                pg = f"ص{x['page']}" if x['page'] else ''
+                return (f"{x['book_name']}" + (f" — {v}{pg}" if (v or pg) else '')).strip()
+            st.markdown(
+                "<div class='r-sub' style='margin-top:8px'>📍 <b>وردت له ترجمة أيضًا في (فهرسة دراية المعتمدة):</b><br>"
+                + " · ".join(loc(x) for x in extra) + "</div>", unsafe_allow_html=True)
     with tabs[4]:
         st.markdown(" · ".join(n['aliases']) if n['aliases'] else "—")
 
@@ -528,6 +540,8 @@ STUDY_GROUPS = [
          "desc": "أين يتوافق حكمُ «بأضعف رواته» مع تقييم دراية الرسميّ وأين يفترقان — والإرسالُ سرُّ الفرق."},
         {"file": "dataset_validation", "title": "التحقّق من البيانات",
          "desc": "مقارنة طبقاتنا المستنبَطة سابقًا بالتصدير المعتمد الكامل: الموضوعات، التقييم، الاتصال، المطابقة."},
+        {"file": "bio_reconcile", "title": "مطابقة كتب الرجال",
+         "desc": "تثبيتُ تراجم الرواة بفهرسة دراية المعتمدة، وإضافةُ جامع الرواة ومنهج المقال وعدّة الرجال."},
     ]),
 ]
 _STUDY_BY_FILE = {it['file']: it for _, items in STUDY_GROUPS for it in items}

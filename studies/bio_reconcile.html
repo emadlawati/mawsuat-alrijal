@@ -1,0 +1,41 @@
+<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8">
+<title>مطابقة كتب الرجال</title><style>
+:root{--bg:#faf7f1;--card:#fffdf9;--line:#e7dfd0;--ink:#2b2317;--soft:#6b5d4a;--gold:#b8860b;--accent:#175d4f;--accent-soft:#e8f1ee;--thiqa:#2e7d32;--daif:#c62828;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Cairo','Amiri',serif;background:var(--bg);color:var(--ink);line-height:1.7;font-size:.95rem;max-width:1060px;margin:0 auto;padding:30px 24px 80px;}
+h1{font-size:1.5rem;font-weight:800;color:var(--accent);text-align:center;margin-bottom:4px;}
+h2{font-size:1.12rem;color:var(--gold);margin:24px 0 6px;border-bottom:2px solid var(--line);padding-bottom:4px;}
+h3{font-size:1rem;color:var(--accent);margin:14px 0 4px;}
+.sub{color:var(--soft);font-size:.9rem;text-align:center;margin-bottom:10px;}
+.note{background:#fdf6e3;border:1px solid #ecd9a0;border-right:4px solid var(--gold);border-radius:8px;padding:8px 14px;color:#7a5b00;font-size:.84rem;margin:10px 0;}
+.metrics{display:flex;gap:12px;justify-content:center;margin:12px 0;flex-wrap:wrap;}
+.metric{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px 16px;text-align:center;min-width:110px;}
+.metric .num{font-size:1.45rem;font-weight:800;color:var(--accent);}
+.metric .lbl{font-size:.74rem;color:var(--soft);}
+table{width:100%;border-collapse:collapse;margin:8px 0;font-size:.83rem;}
+th,td{padding:5px 9px;text-align:right;border-bottom:1px solid var(--line);vertical-align:top;}
+th{background:var(--accent-soft);color:var(--accent);font-weight:700;font-size:.76rem;white-space:nowrap;}
+.thiqa{color:var(--thiqa);font-weight:700;} .daif{color:var(--daif);font-weight:700;}
+.v{color:#999;font-size:.74rem;} .bar{display:inline-block;height:9px;background:var(--accent);border-radius:2px;vertical-align:middle;}
+.pct{color:var(--gold);font-weight:700;}
+@media print{body{padding:10px 14px;} tr{break-inside:avoid;}}
+@media (max-width:640px){body{padding:14px 9px 60px;font-size:.9rem;}h1{font-size:1.2rem;}h2{font-size:1rem;}
+ table{display:block;overflow-x:auto;white-space:nowrap;font-size:.76rem;}th,td{padding:4px 6px;}
+ .metrics{gap:6px;}.metric{min-width:84px;padding:7px 9px;}.metric .num{font-size:1.05rem;}}
+</style></head><body>
+<h1>مطابقة كتب الرجال بفهرسة دراية المعتمدة</h1>
+<p class="sub">تثبيتُ ترجمة كلّ راوٍ في كتب الرجال من فهرسة دراية الكاملة، وإضافةُ الكتب التي لم نكن نملك نصَّها</p>
+<div class="metrics">
+ <div class="metric"><div class="num">28,555</div><div class="lbl">موضع ترجمة مُطابَق</div></div>
+ <div class="metric"><div class="num">5,698</div><div class="lbl">راوٍ له فهرسة كتب</div></div>
+ <div class="metric"><div class="num">2,898</div><div class="lbl">تراجم في الكتب الجديدة</div></div>
+</div>
+<p class="note">لكلّ كتابٍ نملك نصَّه: كم من تراجمنا تُثبتها فهرسةُ دراية («ثُبِّت٪»)، وكم راوٍ تذكر دراية أنّ له ترجمةً فيه
+ولا مدخلَ لنا («فجوة»). فروقُ الصفحات في الطوسي/الكشي/الخلاصة إزاحةُ طبعةٍ لا خطأ، فالتثبيت على مستوى الراوي لا الصفحة.</p>
+<h2>الكتب التي نملك نصَّها</h2>
+<table><tr><th>الكتاب</th><th>مداخلنا</th><th>ثُبِّت٪</th><th>بلا فهرسة</th><th>فجوة (ترجمة بلا مدخل)</th></tr><tr><td>معجم رجال الحديث</td><td>5,434</td><td class='pct'>103%</td><td>3,918</td><td class='daif'>165</td></tr><tr><td>قاموس الرجال</td><td>4,328</td><td class='pct'>63%</td><td>3,328</td><td class='daif'>98</td></tr><tr><td>رجال الطوسي</td><td>2,453</td><td class='pct'>127%</td><td>114</td><td class='daif'>1,382</td></tr><tr><td>رجال ابن داود</td><td>1,865</td><td class='pct'>126%</td><td>60</td><td class='daif'>959</td></tr><tr><td>خلاصة الأقوال</td><td>1,305</td><td class='pct'>101%</td><td>63</td><td class='daif'>428</td></tr><tr><td>رجال النجاشي</td><td>1,215</td><td class='pct'>100%</td><td>22</td><td class='daif'>153</td></tr><tr><td>الفهرست</td><td>783</td><td class='pct'>104%</td><td>40</td><td class='daif'>93</td></tr><tr><td>رجال الكشي</td><td>302</td><td class='pct'>102%</td><td>12</td><td class='daif'>408</td></tr><tr><td>رجال ابن الغضائري</td><td>204</td><td class='pct'>78%</td><td>52</td><td class='daif'>15</td></tr></table>
+<h2>الكتب الجديدة (فهرسة معتمدة، تُعرَض في «في الكتب» دون نصٍّ كامل)</h2>
+<p class="note">هذه الكتبُ لا نملك نصَّها الكامل بعدُ (يحتاج فكَّ ترميز نصوص دراية)، لكنّ فهرستَها المعتمدة تُثبت
+مواضعَ التراجم، فتظهر في بطاقة الراوي: «وردت له ترجمة أيضًا في …».</p>
+<table><tr><th>الكتاب</th><th>عدد التراجم المُثبتة</th></tr><tr><td>جامع الرواة</td><td>1,546</td></tr><tr><td>منهج المقال</td><td>684</td></tr><tr><td>عدة الرجال</td><td>427</td></tr><tr><td>التعلیقات الرجالیة (1)</td><td>162</td></tr><tr><td>کشف النقاب</td><td>79</td></tr></table>
+</body></html>
