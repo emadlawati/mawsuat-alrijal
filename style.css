@@ -28,6 +28,8 @@ html, body, [class*="css"], .stMarkdown, .stMarkdown p, .stTextInput, .stSelectb
 }
 .main .block-container { direction: rtl; text-align: right; max-width: 1100px; padding-top: .8rem; }
 section[data-testid="stSidebar"] { direction: rtl; text-align: right; }
+/* Arabic form shown beside a Latin transliteration (English UI mode) — always isolate as RTL */
+.r-arabic { direction: rtl; unicode-bidi: isolate; opacity: .58; font-size: .9em; }
 h1,h2,h3,h4 { font-family: 'Cairo', sans-serif !important; color: var(--ink); }
 
 /* ---- focus ring (accessibility) ---- */

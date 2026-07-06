@@ -7,7 +7,7 @@ import os, base64, json as _json
 import streamlit as st
 import streamlit.components.v1 as _components
 import graphviz, pandas as pd, altair as alt
-import db, ui
+import db, ui, i18n
 
 st.set_page_config(page_title="موسوعة الرجال", page_icon="📜", layout="wide",
                    initial_sidebar_state="collapsed")
@@ -52,10 +52,11 @@ _inject_pwa()
 
 ss = st.session_state
 for k, v in [('d_id', None), ('cur_book', None), ('chain_id', None), ('lib_page', 0),
-             ('bk_page', None), ('is_res', None), ('study', None)]:
+             ('bk_page', None), ('is_res', None), ('study', None), ('lang', 'ar')]:
     ss.setdefault(k, v)
 
-NAV = ["🏠 الرئيسية", "🔎 الرواة", "📚 الكتب", "🔗 الأسانيد", "🗺️ موضوعات الرواة", "📊 الدراسات"]
+# NAV holds stable internal ids; display labels are localized via i18n ('nav.<id>').
+NAV = ['home', 'narrators', 'books', 'isnad', 'atlas', 'studies']
 ss.setdefault('nav', NAV[0])
 
 # ---- deep links (must run before the nav widget) ----
@@ -87,10 +88,11 @@ def compute_grade(members):
         rank = GRADE_RANK.get(lab, 1)
         if worst is None or rank < worst:
             worst, culprit = rank, (name, lab)
-    if worst is None: return ('غير معلوم', 'var(--majhul)', '')
+    if worst is None: return (i18n.chain_grade('غير معلوم'), 'var(--majhul)', '')
     g, col = GRADE_LABEL[worst]
-    why = f"بأضعف رواته: {culprit[0]} ({culprit[1]})" if culprit else ''
-    return (g, col, why)
+    why = i18n.t('st.why', name=i18n.disp_name(culprit[0], html=True),
+                 lab=i18n.grade_label(culprit[1])) if culprit else ''
+    return (i18n.chain_grade(g), col, why)
 
 def narrator_brief(d_id):
     """(name, verdict, is_masum, tabaqa) from cached maps — light enough for per-node stepper use."""
@@ -146,109 +148,120 @@ def result_rows(results, key_prefix, limit=30):
 def render_profile(d_id):
     n = db.narrator(d_id)
     if not n:
-        st.warning("لم يُعثر على الراوي."); return
-    if st.button("↩ رجوع للنتائج", key=f"back_{d_id}"):
+        st.warning(i18n.t('p.notfound')); return
+    if st.button(i18n.t('p.back'), key=f"back_{d_id}"):
         ss['d_id'] = None; st.rerun()
     flag = db.eval_flag(d_id)
 
     chips = ''
-    if n['is_masum']: chips += ui.chip('🌟 معصوم', 'var(--gold)')
+    if n['is_masum']: chips += ui.chip(i18n.t('p.masum'), 'var(--gold)')
     if n['evals']: chips += ui.verdict_chip(n['evals'][0]['verdict'])
     chips += ui.tabaqah_chip(n['tabaqah'])
     pills = ''
-    if n['kunya']: pills += ui.pill("الكنية: " + n['kunya'].split(chr(10))[0][:42])
-    if n['madhab']: pills += ui.pill("المذهب: " + n['madhab'].split('(')[0][:30])
-    if n['wiladat_year']: pills += ui.pill(f"الولادة: {n['wiladat_year']} هـ")
-    if n['wafat_year']: pills += ui.pill(f"الوفاة: {n['wafat_year']} هـ")
-    if n['chain_count']: pills += ui.pill(f"وروده في الأسانيد: {n['chain_count']}")
+    if n['kunya']:
+        kunya = n['kunya'].split(chr(10))[0]
+        # the field can carry a parenthetical source citation; drop it before transliterating in EN
+        kunya = (kunya.split('(')[0].strip() if i18n.is_en() else kunya)[:42]
+        pills += ui.pill(i18n.t('p.kunya', v=i18n.disp_name(kunya, html=True)))
+    if n['madhab']: pills += ui.pill(i18n.t('p.madhab', v=i18n.madhab_label(n['madhab'].split('(')[0][:30])))
+    if n['wiladat_year']: pills += ui.pill(i18n.t('p.born', v=n['wiladat_year']))
+    if n['wafat_year']: pills += ui.pill(i18n.t('p.died', v=n['wafat_year']))
+    if n['chain_count']: pills += ui.pill(i18n.t('p.chains', v=n['chain_count']))
     t = n['tabaqah']
     src_line = ''
     if t:
-        src = {'alf_rajul': 'كتاب ألف رجل', 'inferred': 'مستنبطة من شبكة الرواة والقرائن',
+        src = i18n.TAB_SRC_EN.get(t['source'], t['source']) if i18n.is_en() else \
+              {'alf_rajul': 'كتاب ألف رجل', 'inferred': 'مستنبطة من شبكة الرواة والقرائن',
                'inferred_llm': 'مستنبطة من نصوص التراجم'}.get(t['source'], t['source'])
-        src_line = f"<div class='r-sub'>مصدر الطبقة: {src}</div>"
+        src_line = f"<div class='r-sub'>{i18n.t('p.tabsrc', v=src)}</div>"
     st.markdown(ui.card(
-        f"<span class='r-name'>{n['standard_name']}</span><br>{chips}<br>{pills}{src_line}"
+        f"<span class='r-name'>{i18n.disp_name(n['standard_name'], html=True)}</span><br>{chips}<br>{pills}{src_line}"
     ), unsafe_allow_html=True)
 
     if flag:
-        st.markdown(ui.flagnote("لم يتيسّر التحقق الآلي من تقويم هذا الراوي في برنامج دراية النور، "
-                                f"فيُرجى التحقق منه يدوياً. ({flag['detail']})"), unsafe_allow_html=True)
+        st.markdown(ui.flagnote(i18n.t('p.flag', v=flag['detail'])), unsafe_allow_html=True)
 
-    # evaluations — show BOTH Dirayah fields: evaluation_result (حصيلة التقويم) + aggregate (جمع التقويم)
+    # evaluations — verbatim Dirayah fields (verdict text stays Arabic): evaluation_result + aggregate
     for ev in n['evals']:
         body = ''
-        if ev['verdict']: body += f"<b>حصيلة التقويم:</b> {ev['verdict']}<br>"
-        if ev['aggregate']: body += f"<b>جمع التقويم:</b> {ev['aggregate']}<br>"
+        if ev['verdict']: body += f"<b>{i18n.t('p.eval.result')}</b> <span class='r-arabic'>{ev['verdict']}</span><br>"
+        if ev['aggregate']: body += f"<b>{i18n.t('p.eval.aggregate')}</b> <span class='r-arabic'>{ev['aggregate']}</span><br>"
         if ev['jarh_tadil']: body += ui.quote(ev['jarh_tadil'])
-        st.markdown(ui.card(f"<b>📊 تقويم دراية النور</b><br>{body}"), unsafe_allow_html=True)
+        st.markdown(ui.card(f"<b>{i18n.t('p.eval.title')}</b><br>{body}"), unsafe_allow_html=True)
     if not n['evals'] and not n['is_masum']:
-        st.caption("لا يوجد تقويم في دراية النور لهذا الراوي.")
+        st.caption(i18n.t('p.eval.none'))
 
     # official per-chain grading rollup (Dirayah SanadEvaluation)
     ng = db.narrator_grading(d_id)
     if ng and ng['total']:
         gt = ng['total']
         parts = []
-        for lbl, key, col in (("صحيح", 'sahih', 'var(--thiqa)'), ("موثق/معتبر", 'muwathaq', 'var(--muwathaq)'),
-                              ("ضعيف بجهالة", 'daif_jahala', 'var(--majhul)'), ("ضعيف", 'daif', 'var(--daif)')):
+        for arlbl, key, col in (("صحيح", 'sahih', 'var(--thiqa)'), ("موثق/معتبر", 'muwathaq', 'var(--muwathaq)'),
+                                ("ضعيف بجهالة", 'daif_jahala', 'var(--majhul)'), ("ضعيف", 'daif', 'var(--daif)')):
             v = ng[key] or 0
+            lbl = i18n.OFFICIAL_GRADE_EN[arlbl] if i18n.is_en() else arlbl
             if v: parts.append(f"<span style='color:{col};font-weight:700'>{lbl} {100*v/gt:.0f}%</span> <span class='r-sub'>({v:,})</span>")
-        imams = ' · '.join(f"{nm.replace(' عليه السلام','').replace(' عليها السلام','')} <span class='r-sub'>({c:,})</span>"
+        imams = ' · '.join(f"{i18n.imam_name(nm.replace(' عليه السلام','').replace(' عليها السلام',''))} <span class='r-sub'>({c:,})</span>"
                            for nm, c in (ng['top_imams'] or [])[:3])
-        body = f"وُزِّعت أسانيدُه ({gt:,}) على التقييم الرسميّ: " + ' · '.join(parts)
-        if imams: body += f"<br><b>عمّن يروي من المعصومين:</b> {imams}"
-        st.markdown(ui.card(f"<b>⚖️ أسانيده في التقييم الرسميّ (دراية)</b><br>{body}"), unsafe_allow_html=True)
+        body = i18n.t('p.grading.body', n=f'{gt:,}') + ' · '.join(parts)
+        if imams: body += f"<br><b>{i18n.t('p.grading.imams')}</b> {imams}"
+        st.markdown(ui.card(f"<b>{i18n.t('p.grading.title')}</b><br>{body}"), unsafe_allow_html=True)
 
-    tabs = st.tabs(["🧑‍🏫 الشيوخ والتلاميذ", "🕸️ شبكة الرواية", "📈 الخطّ الزمني", "📚 في الكتب", "📛 الأسماء والألقاب"])
+    tabs = st.tabs([i18n.t('p.tab.teachers'), i18n.t('p.tab.network'), i18n.t('p.tab.timeline'),
+                    i18n.t('p.tab.books'), i18n.t('p.tab.aliases')])
     with tabs[0]:
         c1, c2 = st.columns(2)
-        for col, lst, lbl, pre in ((c1, n['teachers'], 'شيوخه (روى عنهم)', 't'),
-                                   (c2, n['students'], 'تلاميذه (رَوَوا عنه)', 's')):
+        for col, lst, lbl, pre in ((c1, n['teachers'], i18n.t('p.teachers', n=len(n['teachers'])), 't'),
+                                   (c2, n['students'], i18n.t('p.students', n=len(n['students'])), 's')):
             with col:
-                st.markdown(f"**{lbl} — {len(lst)}**")
+                st.markdown(f"**{lbl}**")
                 for x in lst[:10]:
-                    if st.button(f"{x['standard_name']}  ({x['chain_count']})",
+                    if st.button(f"{i18n.disp_name(x['standard_name'])}  ({x['chain_count']})",
                                  key=f"{pre}{d_id}{x['d_id']}", use_container_width=True):
                         goto(NAV[1], d_id=x['d_id'])
                 if len(lst) > 10:
-                    with st.expander(f"عرض الكل ({len(lst)})"):
+                    with st.expander(i18n.t('p.showall', n=len(lst))):
                         for x in lst[10:60]:
-                            if st.button(f"{x['standard_name']}  ({x['chain_count']})",
+                            if st.button(f"{i18n.disp_name(x['standard_name'])}  ({x['chain_count']})",
                                          key=f"x{pre}{d_id}{x['d_id']}", use_container_width=True):
                                 goto(NAV[1], d_id=x['d_id'])
     with tabs[1]:
         render_network(d_id)
     with tabs[2]:
         if t: render_timeline(t, n['wafat_year'], n['wiladat_year'])
-        else: st.caption("لا توجد طبقة مسجّلة لهذا الراوي.")
+        else: st.caption(i18n.t('p.notab'))
     with tabs[3]:
         shown = False
         for b in n['books']:
             shown = True
-            with st.expander(f"{db.BOOK_TITLES.get(b['book_id'], b['book_id'])} — ص{b['page'] or '؟'}"):
+            with st.expander(f"{i18n.book_title(b['book_id'])} — {i18n.pglabel(b['page'])}"):
                 st.markdown(ui.quote(b['text'] or '—'), unsafe_allow_html=True)
-        if not shown: st.caption("لا توجد ترجمة مستخرجة في الكتب لهذا الراوي.")
+        if not shown: st.caption(i18n.t('p.nobooktext'))
         # authoritative Dirayah bio-location index — additional rijāl books (location only, no full text yet)
         nbks = db.narrator_books(d_id)
         have = {b['book_id'] for b in n['books']}
         extra = [x for x in nbks if not (x['has_text'] and x['book_code'] in have)]
         if extra:
+            vword = 'v' if i18n.is_en() else 'ج'
             def loc(x):
-                v = f"ج{x['vol']} " if x['vol'] and str(x['vol']) not in ('', '1') else ''
-                pg = f"ص{x['page']}" if x['page'] else ''
-                return (f"{x['book_name']}" + (f" — {v}{pg}" if (v or pg) else '')).strip()
+                v = f"{vword}{x['vol']} " if x['vol'] and str(x['vol']) not in ('', '1') else ''
+                pg = i18n.pglabel(x['page']) if x['page'] else ''
+                nm = i18n.book_loc_name(x['book_code'], x['book_name'])
+                return (f"{nm}" + (f" — {v}{pg}" if (v or pg) else '')).strip()
             st.markdown(
-                "<div class='r-sub' style='margin-top:8px'>📍 <b>وردت له ترجمة أيضًا في (فهرسة دراية المعتمدة):</b><br>"
+                f"<div class='r-sub' style='margin-top:8px'>{i18n.t('p.alsoin')}<br>"
                 + " · ".join(loc(x) for x in extra) + "</div>", unsafe_allow_html=True)
     with tabs[4]:
-        st.markdown(" · ".join(n['aliases']) if n['aliases'] else "—")
+        if n['aliases']:
+            st.markdown(" · ".join(i18n.disp_name(a, html=True) for a in n['aliases']), unsafe_allow_html=True)
+        else:
+            st.markdown("—")
 
 def render_network(d_id):
-    n_each = st.slider("عدد الشيوخ/التلاميذ المعروضين", 5, 80, 25, key=f"net_n_{d_id}")
+    n_each = st.slider(i18n.t('net.slider'), 5, 80, 25, key=f"net_n_{d_id}")
     nodes, edges = db.network_edges(d_id, max_each=n_each)
     if len(nodes) <= 1:
-        st.caption("لا توجد علاقات مسجّلة في الشبكة."); return
+        st.caption(i18n.t('net.none')); return
     g = graphviz.Digraph(); g.attr(rankdir='RL', bgcolor='transparent', nodesep='0.16', ranksep='0.6'
                                    , size='8,11', ratio='compress')
     g.attr('node', shape='box', style='rounded,filled', fontname='Arial', fontsize='11', margin='0.10,0.04')
@@ -256,21 +269,22 @@ def render_network(d_id):
     col = {'me': '#175d4f', 'teacher': '#2e7d32', 'student': '#ef6c00'}
     fcol = {'me': '#e8f1ee', 'teacher': '#e8f5e9', 'student': '#fff3e0'}
     for nid, (name, role) in nodes.items():
-        lbl = name[:28] + ('…' if len(name) > 28 else '')
+        dn = i18n.translit.translit_name(name) if i18n.is_en() else name
+        lbl = dn[:32] + ('…' if len(dn) > 32 else '')
         g.node(nid, lbl, color=col[role], fillcolor=fcol[role], fontcolor='#2b2317')
     # arrow flows teacher→student (knowledge transmission: «روى عنه»)
     for t, s, cnt in edges: g.edge(t, s)
     st.graphviz_chart(g, use_container_width=True)
-    with st.expander("عرض البيانات كقائمة (لمتصفحي الشاشة)"):
+    with st.expander(i18n.t('net.aslist')):
         teachers = [(n,name) for n,(name,r) in nodes.items() if r=='teacher']
         students = [(n,name) for n,(name,r) in nodes.items() if r=='student']
         if teachers:
-            st.caption(f"الشيوخ ({len(teachers)}):")
-            st.markdown(' · '.join(d[:28] for _,d in teachers))
+            st.caption(i18n.t('net.teachers', n=len(teachers)))
+            st.markdown(' · '.join(i18n.disp_name(d) for _,d in teachers))
         if students:
-            st.caption(f"التلاميذ ({len(students)}):")
-            st.markdown(' · '.join(d[:28] for _,d in students))
-    st.caption("🟢 شيوخه · 🟦 الراوي · 🟠 تلاميذه — السهم باتجاه «روى عنه» (من الشيخ إلى تلميذه)")
+            st.caption(i18n.t('net.students', n=len(students)))
+            st.markdown(' · '.join(i18n.disp_name(d) for _,d in students))
+    st.caption(i18n.t('net.legend'))
 
 IMAMS = [("النبي ﷺ", -52, 11), ("عليّ ع", -23, 40), ("الحسن ع", 3, 50), ("الحسين ع", 4, 61),
          ("السجاد ع", 38, 95), ("الباقر ع", 57, 114), ("الصادق ع", 83, 148), ("الكاظم ع", 127, 183),
@@ -278,78 +292,78 @@ IMAMS = [("النبي ﷺ", -52, 11), ("عليّ ع", -23, 40), ("الحسن ع"
 def render_timeline(tb, wafat, wiladat):
     lo, hi = tb['tabaqah_low'], tb['tabaqah_high']
     y0 = wiladat or db.TAB_YEARS[lo][0]; y1 = wafat or db.TAB_YEARS[hi][3]
-    rows = [{'من': a, 'إلى': b, 'الاسم': nm, 'نوع': 'إمام'} for nm, a, b in IMAMS]
-    rows.append({'من': y0, 'إلى': y1, 'الاسم': '⟵ هذا الراوي', 'نوع': 'الراوي'})
-    df = pd.DataFrame(rows); order = [r['الاسم'] for r in rows]
+    imam_kind = i18n.t('tl.kind.imam'); nar_kind = i18n.t('tl.kind.nar')
+    rows = [{'from': a, 'to': b, 'name': i18n.imam_name(nm), 'kind': imam_kind} for nm, a, b in IMAMS]
+    rows.append({'from': y0, 'to': y1, 'name': i18n.t('tl.thisnar'), 'kind': nar_kind})
+    df = pd.DataFrame(rows); order = [r['name'] for r in rows]
+    cf, ct, cn = i18n.t('tl.col.from'), i18n.t('tl.col.to'), i18n.t('tl.col.name')
     ch = alt.Chart(df).mark_bar(height=13, cornerRadius=3).encode(
-        x=alt.X('من:Q', title='السنة الهجرية', scale=alt.Scale(domain=[-60, 320])), x2='إلى:Q',
-        y=alt.Y('الاسم:N', sort=order, title=None),
-        color=alt.Color('نوع:N', scale=alt.Scale(domain=['إمام', 'الراوي'], range=['#b8860b', '#175d4f']), legend=None),
-        tooltip=['الاسم', 'من', 'إلى']).properties(height=350)
+        x=alt.X('from:Q', title=i18n.t('tl.year'), scale=alt.Scale(domain=[-60, 320])), x2='to:Q',
+        y=alt.Y('name:N', sort=order, title=None),
+        color=alt.Color('kind:N', scale=alt.Scale(domain=[imam_kind, nar_kind], range=['#b8860b', '#175d4f']), legend=None),
+        tooltip=[alt.Tooltip('name:N', title=cn), alt.Tooltip('from:Q', title=cf),
+                 alt.Tooltip('to:Q', title=ct)]).properties(height=350)
     st.altair_chart(ch, use_container_width=True)
-    with st.expander("عرض البيانات كجدول (لمتصفحي الشاشة)"):
-        st.dataframe(df[["الاسم","من","إلى"]], use_container_width=True, hide_index=True)
-    st.caption(f"الطبقة {db.TAB_AR.get(tb['tabaqa'], tb['tabaqa'])}"
-               + (f" (تمتد من الطبقة {lo} إلى {hi})" if hi != lo else "")
-               + " — موقع الراوي الزمني مقارنةً بحياة الأئمة عليهم السلام.")
+    with st.expander(i18n.t('tl.astable')):
+        show = df[["name", "from", "to"]].rename(columns={"name": cn, "from": cf, "to": ct})
+        st.dataframe(show, use_container_width=True, hide_index=True)
+    span = i18n.t('tl.span', lo=lo, hi=hi) if hi != lo else ''
+    st.caption(i18n.t('tl.caption', tab=i18n.tab_name(tb['tabaqa']), span=span))
 
 # ---------------------------------------------------------------- pages
 def page_home():
     s = db.global_stats()
-    st.markdown("<div class='r-hero'><h1>📜 موسوعة الرجال</h1>"
-                "<p>قاعدة بيانات رواة الحديث عند الإمامية — التقويم، الطبقات، الكتب، وتحليل الأسانيد</p></div>",
-                unsafe_allow_html=True)
+    st.markdown(f"<div class='r-hero'><h1>{i18n.t('home.title')}</h1>"
+                f"<p>{i18n.t('home.subtitle')}</p></div>", unsafe_allow_html=True)
     st.markdown(
         "<div class='r-intro'>"
-        f"<div>🔎 تصفّح حال <b>{s['narrators']:,}</b> راوٍ مع جميع آراء علماء الرجال فيه</div>"
-        "<div>📚 تصفّح كتب الرجال كاملةً مع خاصيّة البحث في نصوصها</div>"
-        "<div>🔗 تحليل الأسانيد والحكم عليها بأضعف رواتها</div>"
-        "<div>📊 دراساتٌ بحثيّة في الأسانيد: العلل، المشيخة وطرق الكتب، وشبكة الرواة</div>"
+        f"<div>{i18n.t('home.intro1', n=format(s['narrators'], ','))}</div>"
+        f"<div>{i18n.t('home.intro2')}</div>"
+        f"<div>{i18n.t('home.intro3')}</div>"
+        f"<div>{i18n.t('home.intro4')}</div>"
         "</div>", unsafe_allow_html=True)
-    st.markdown(
-        "<div class='r-verify'>⚠️ تنبيه: هذه الموسوعة أداة بحثية تساعد في تقييم الأسانيد ومعرفة حال الرواة. "
-        "يرجى دائماً الرجوع إلى المصدر الأصلي والتحقق منه لاحتمالية وقوع الخطأ.</div>",
-        unsafe_allow_html=True)
-    q = st.text_input("ابحث عن راوٍ بالاسم أو الكنية أو اللقب", key="home_q",
-                      placeholder="مثال: زرارة بن أعين · محمد بن يعقوب الكليني · أبو بصير")
+    st.markdown(f"<div class='r-verify'>{i18n.t('home.verify')}</div>", unsafe_allow_html=True)
+    q = st.text_input(i18n.t('home.search'), key="home_q", placeholder=i18n.t('home.search.ph'))
     if q:
         res = db.search_narrators(q)
-        st.caption(f"{len(res)} نتيجة")
+        st.caption(i18n.t('home.nresults', n=len(res)))
         result_rows(res, 'h')
         return
     st.markdown(ui.statband([
-        (f"{s['narrators']:,}", "راوياً"), (f"{s['evals']:,}", "تقويم دراية النور"),
-        (f"{s['tabaqah']:,}", "راوياً معلوم الطبقة"),
-        (f"{s['chains']:,}", "سنداً"), (f"{s['entries']:,}", "ترجمة من {} كتب".format(s['books'])),
+        (f"{s['narrators']:,}", i18n.t('home.stat.narrators')), (f"{s['evals']:,}", i18n.t('home.stat.evals')),
+        (f"{s['tabaqah']:,}", i18n.t('home.stat.tabaqah')),
+        (f"{s['chains']:,}", i18n.t('home.stat.chains')),
+        (f"{s['entries']:,}", i18n.t('home.stat.entries', n=s['books'])),
     ]), unsafe_allow_html=True)
     st.write("")
     c1, c2, c3 = st.columns(3)
-    feats = [(c1, "🔎 مكتبة الرواة", "ترجمة وافية لكل راوٍ: تقويمه، وطبقته، وشيوخه وتلاميذه، وشبكة روايته، وخطّه الزمني.", NAV[1]),
-             (c2, "📚 كتب الرجال", "عشرة كتب رجالية كاملة: تصفّح تراجمها، واقرأها صفحةً صفحة، وابحث في نصوصها.", NAV[2]),
-             (c3, "🔗 محلّل الأسانيد", "حلّل أي سند تنسخه نصاً: يُحدَّد كل راوٍ فيه ويُحكم على السند بأضعف رواته.", NAV[3])]
+    feats = [(c1, i18n.t('home.feat1.t'), i18n.t('home.feat1.d'), NAV[1]),
+             (c2, i18n.t('home.feat2.t'), i18n.t('home.feat2.d'), NAV[2]),
+             (c3, i18n.t('home.feat3.t'), i18n.t('home.feat3.d'), NAV[3])]
     for col, title, desc, target in feats:
         with col:
             st.markdown(ui.tile(title, '', desc), unsafe_allow_html=True)
-            if st.button("فتح", key=f"feat{target}", use_container_width=True):
+            if st.button(i18n.t('home.open'), key=f"feat{target}", use_container_width=True):
                 goto(target)
 
 def page_library():
-    st.subheader("🔎 مكتبة الرواة")
-    mode = st.radio("وضع العرض", ["بحث", "تصفّح الكل"], horizontal=True, key="lib_mode",
-                    label_visibility="collapsed")
-    if mode == "بحث":
-        q = st.text_input("ابحث باسم الراوي أو لقبه أو كنيته", key="lib_q", placeholder="مثال: زرارة بن أعين")
+    st.subheader(i18n.t('lib.title'))
+    MODES = ['search', 'browse']
+    mode = st.radio("mode", MODES, horizontal=True, key="lib_mode", label_visibility="collapsed",
+                    format_func=lambda m: i18n.t('lib.mode.search') if m == 'search' else i18n.t('lib.mode.browse'))
+    if mode == 'search':
+        q = st.text_input(i18n.t('lib.search'), key="lib_q", placeholder=i18n.t('lib.search.ph'))
         if q:
             res = db.search_narrators(q)
-            st.caption(f"{len(res)} نتيجة")
+            st.caption(i18n.t('home.nresults', n=len(res)))
             result_rows(res, 'r')
     else:
         PER = 50; total = db.narrator_count(); pages = (total + PER - 1) // PER
         c1, c2, c3 = st.columns([1, 2, 1])
-        if c1.button("◀ السابق", disabled=ss['lib_page'] <= 0): ss['lib_page'] -= 1; st.rerun()
-        c2.markdown(f"<div style='text-align:center'>صفحة {ss['lib_page']+1} من {pages} · {total:,} راوٍ</div>",
+        if c1.button(i18n.t('lib.prev'), disabled=ss['lib_page'] <= 0): ss['lib_page'] -= 1; st.rerun()
+        c2.markdown(f"<div style='text-align:center'>{i18n.t('lib.page', p=ss['lib_page']+1, n=pages, t=f'{total:,}')}</div>",
                     unsafe_allow_html=True)
-        if c3.button("التالي ▶", disabled=ss['lib_page'] >= pages - 1): ss['lib_page'] += 1; st.rerun()
+        if c3.button(i18n.t('lib.next'), disabled=ss['lib_page'] >= pages - 1): ss['lib_page'] += 1; st.rerun()
         rows = db.browse_narrators(ss['lib_page'] * PER, PER)
         vm = db.verdict_map()
         html = ''.join(ui.narrator_row(r['d_id'], r['standard_name'], vm.get(r['d_id']),
@@ -359,11 +373,11 @@ def page_library():
     st.divider()
     if ss['d_id']:
         render_profile(ss['d_id'])
-    elif mode == "بحث":
-        st.info("ابحث عن راوٍ لعرض ترجمته الكاملة، أو اختر «تصفّح الكل» لاستعراض الرواة جميعاً.")
+    elif mode == 'search':
+        st.info(i18n.t('lib.hint'))
 
 def page_books():
-    st.subheader("📚 كتب الرجال")
+    st.subheader(i18n.t('bk.title'))
     stats = db.book_stats()
     if not ss['cur_book']:
         cols = st.columns(3)
@@ -377,27 +391,26 @@ def page_books():
         for i, s in enumerate(stats):
             with cols[i % 3]:
                 pct = round(100 * s['matched'] / s['total']) if s['total'] else 0
-                st.markdown(ui.tile(s['title'], authors.get(s['book_id'], ''),
-                                    f"{s['total']:,} ترجمة · {pct}% منها موصولة بقاعدة الرواة"), unsafe_allow_html=True)
-                if st.button("تصفّح الكتاب", key=f"bk{s['book_id']}", use_container_width=True):
+                author = i18n.BOOK_AUTHOR_EN.get(s['book_id'], '') if i18n.is_en() else authors.get(s['book_id'], '')
+                st.markdown(ui.tile(i18n.book_title(s['book_id']), author,
+                                    i18n.t('bk.tilemeta', n=f"{s['total']:,}", p=pct)), unsafe_allow_html=True)
+                if st.button(i18n.t('bk.browse'), key=f"bk{s['book_id']}", use_container_width=True):
                     ss['cur_book'] = s['book_id']; ss['bk_page'] = None; st.rerun()
         return
     bid = ss['cur_book']
-    title = db.BOOK_TITLES.get(bid, bid)
     c1, c2 = st.columns([4, 1])
-    c1.markdown(f"### {title}")
-    if c2.button("⬅ كل الكتب"): ss['cur_book'] = None; st.rerun()
+    c1.markdown(f"### {i18n.book_title(bid)}")
+    if c2.button(i18n.t('bk.allbooks')): ss['cur_book'] = None; st.rerun()
+    VIEWS = ['bios'] if bid == 'alf_rajul' else ['bios', 'full']
     if bid == 'alf_rajul':
-        st.caption("كتاب «ألف رجل» مأخوذ كاملاً من قاعدة بيانات تطبيقه — وتراجمه الـ1015 كلّها في «التراجم».")
-        views = ["📑 التراجم"]
-    else:
-        views = ["📑 التراجم", "📖 الكتاب كاملاً"]
-    view = st.radio("وضع العرض", views, horizontal=True, key="bk_view", label_visibility="collapsed")
-    if view == "📑 التراجم":
-        q = st.text_input("ابحث في التراجم", key="bk_q", placeholder="اسم راوٍ أو كلمة في النص")
+        st.caption(i18n.t('bk.alf'))
+    view = st.radio("view", VIEWS, horizontal=True, key="bk_view", label_visibility="collapsed",
+                    format_func=lambda v: i18n.t('bk.view.bios') if v == 'bios' else i18n.t('bk.view.full'))
+    if view == 'bios':
+        q = st.text_input(i18n.t('bk.search.bios'), key="bk_q", placeholder=i18n.t('bk.search.bios.ph'))
         if q and q.strip():
             entries = db.book_entries(bid, q)
-            st.caption(f"{len(entries)} نتيجة")
+            st.caption(i18n.t('bk.nresults', n=len(entries)))
         else:
             PER = 100
             total = db.book_entries_count(bid)
@@ -406,49 +419,49 @@ def page_books():
             if ss.get('be_book') != bid:           # reset page when switching books
                 ss['be_page'] = 0; ss['be_book'] = bid
             p1, p2, p3 = st.columns([1, 2, 1])
-            if p1.button("◀ السابق", key="be_prev", disabled=ss['be_page'] <= 0):
+            if p1.button(i18n.t('lib.prev'), key="be_prev", disabled=ss['be_page'] <= 0):
                 ss['be_page'] -= 1; st.rerun()
-            p2.markdown(f"<div style='text-align:center'>صفحة {ss['be_page']+1} من {pages} · {total:,} ترجمة</div>",
+            p2.markdown(f"<div style='text-align:center'>{i18n.t('bk.page', p=ss['be_page']+1, n=pages, t=f'{total:,}')}</div>",
                         unsafe_allow_html=True)
-            if p3.button("التالي ▶", key="be_next", disabled=ss['be_page'] >= pages - 1):
+            if p3.button(i18n.t('lib.next'), key="be_next", disabled=ss['be_page'] >= pages - 1):
                 ss['be_page'] += 1; st.rerun()
             entries = db.book_entries(bid, '', limit=PER, offset=ss['be_page'] * PER)
         vm = db.verdict_map()
         for e in entries:
             em = db.reliability(vm[e['d_id']])[2] if e['d_id'] in vm else ''
-            with st.expander(f"{em} [{e['entry_no']}] {e['headword']} — ص{e['page'] or '؟'}"):
+            with st.expander(f"{em} [{e['entry_no']}] {i18n.disp_name(e['headword'])} — {i18n.pglabel(e['page'])}"):
                 st.markdown(ui.quote(e['text'] or '—'), unsafe_allow_html=True)
-                if e['d_id'] and st.button("↩ عرض ترجمة الراوي الكاملة", key=f"be{e['rowid']}"):
+                if e['d_id'] and st.button(i18n.t('bk.entry.full'), key=f"be{e['rowid']}"):
                     goto(NAV[1], d_id=e['d_id'])
     else:
         vols = db.book_vols(bid)
-        vol = st.selectbox("الجزء", vols, format_func=lambda v: f"الجزء {v}", key="bk_vol") if len(vols) > 1 else (vols[0] if vols else 1)
+        vol = st.selectbox(i18n.t('bk.vol.label'), vols, format_func=lambda v: i18n.t('bk.vol', v=v), key="bk_vol") if len(vols) > 1 else (vols[0] if vols else 1)
         mn, mx, cnt = db.book_page_range(bid, vol)
         toc = db.book_toc(bid, vol)
         if toc:
-            opts = ["— فهرس المحتويات —"] + [f"{lbl}  (ص{pg})" for lbl, pg in toc]
-            pick = st.selectbox("انتقل إلى باب", opts, key=f"toc_{bid}_{vol}")
+            opts = [i18n.t('bk.toc.head')] + [f"{lbl}  ({i18n.pglabel(pg)})" for lbl, pg in toc]
+            pick = st.selectbox(i18n.t('bk.toc.goto'), opts, key=f"toc_{bid}_{vol}")
             if pick != opts[0]:
                 pg = toc[opts.index(pick) - 1][1]
                 if ss.get('bk_page') != pg and ss.get('_toc_last') != pick:
                     ss['bk_page'] = pg; ss['_toc_last'] = pick; st.rerun()
-        sq = st.text_input("بحث في نصّ الكتاب كاملاً", key="bk_fts", placeholder="كلمة أو عبارة")
+        sq = st.text_input(i18n.t('bk.fts'), key="bk_fts", placeholder=i18n.t('bk.fts.ph'))
         if sq:
             hits = db.book_pages_search(bid, sq)
-            st.caption(f"{len(hits)} موضع")
+            st.caption(i18n.t('bk.nhits', n=len(hits)))
             for v, p, snip in hits[:25]:
-                if st.button(f"ج{v} ص{p}:  {snip}", key=f"fp{v}_{p}", use_container_width=True):
+                if st.button(f"{i18n.t('bk.loc', v=v, p=p)}:  {snip}", key=f"fp{v}_{p}", use_container_width=True):
                     ss['bk_page'] = p; st.rerun()
         page = ss['bk_page'] if (ss['bk_page'] and mn <= ss['bk_page'] <= mx) else mn
         c1, c2, c3 = st.columns([1, 3, 1])
-        if c1.button("◀ السابقة", disabled=page <= mn): ss['bk_page'] = page - 1; st.rerun()
-        newp = c2.slider("الصفحة", mn, mx, page, key="bk_slider", label_visibility="collapsed")
+        if c1.button(i18n.t('bk.prevpage'), disabled=page <= mn): ss['bk_page'] = page - 1; st.rerun()
+        newp = c2.slider(i18n.t('bk.pageword'), mn, mx, page, key="bk_slider", label_visibility="collapsed")
         if newp != page: ss['bk_page'] = newp; st.rerun()
-        if c3.button("التالية ▶", disabled=page >= mx): ss['bk_page'] = page + 1; st.rerun()
+        if c3.button(i18n.t('bk.nextpage'), disabled=page >= mx): ss['bk_page'] = page + 1; st.rerun()
         txt = db.book_page(bid, vol, page) or '—'
         if sq and sq.strip() and sq in txt:
             txt = txt.replace(sq, f"<mark>{sq}</mark>")
-        st.markdown(f"<div class='r-sub' style='text-align:center'>صفحة {page} من {mx}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='r-sub' style='text-align:center'>{i18n.t('bk.pageof', p=page, n=mx)}</div>", unsafe_allow_html=True)
         st.markdown(f"<div class='r-bookpage'>{txt.replace(chr(10), '<br>')}</div>", unsafe_allow_html=True)
 
 EXAMPLES = [
@@ -457,16 +470,15 @@ EXAMPLES = [
     "محمد بن الحسن الطوسي عن المفيد عن الصدوق عن أبيه عن سعد بن عبد الله عن أحمد بن محمد بن عيسى",
 ]
 def page_isnad():
-    st.subheader("🔗 محلّل الأسانيد")
-    st.caption("انسخ السند كما ورد في الكتاب، وسيُحدَّد كل راوٍ فيه ويُحكم على السند بأضعف رواته.")
+    st.subheader(i18n.t('is.title'))
+    st.caption(i18n.t('is.caption'))
     ec = st.columns(len(EXAMPLES))
     for i, ex in enumerate(EXAMPLES):
-        if ec[i].button(f"مثال {i+1}", key=f"ex{i}", use_container_width=True):
+        if ec[i].button(i18n.t('is.example', n=i+1), key=f"ex{i}", use_container_width=True):
             ss['is_txt'] = ex; ss['is_res'] = None; st.rerun()
-    txt = st.text_area("نصّ السند", key="is_txt", height=110,
-                       placeholder="محمد بن يعقوب عن علي بن إبراهيم عن أبيه …")
-    if st.button("🔍 حلّل السند", type="primary", use_container_width=True) and txt.strip():
-        with st.spinner("جارٍ تحليل السند…"):
+    txt = st.text_area(i18n.t('is.text'), key="is_txt", height=110, placeholder=i18n.t('is.text.ph'))
+    if st.button(i18n.t('is.analyze'), type="primary", use_container_width=True) and txt.strip():
+        with st.spinner(i18n.t('is.spinner')):
             ss['is_res'] = db.resolve_isnad(txt)
     if ss.get('is_res'):
         res = ss['is_res']
@@ -474,10 +486,11 @@ def page_isnad():
         flags = [bool(res[i+1]['link_ok']) for i in range(len(res) - 1)]
         cc_list = [res[i+1].get('chain_count', 0) for i in range(len(res) - 1)]
         render_stepper(levels, flags, chain_counts=cc_list)
-        with st.expander("احتمالات أخرى لتحديد الرواة (إن أخطأ التحديد)"):
+        with st.expander(i18n.t('is.alts')):
             for r in res:
-                alts = " · ".join(n for _, n in (r['alts'] or [])[:4])
-                st.markdown(f"**{r['segment']}** ← {r['name']}  <span class='r-sub'>(احتمالات أخرى: {alts})</span>",
+                alts = " · ".join(i18n.disp_name(n) for _, n in (r['alts'] or [])[:4])
+                st.markdown(f"**{i18n.disp_name(r['segment'], html=True)}** ← {i18n.disp_name(r['name'], html=True)}  "
+                            f"<span class='r-sub'>{i18n.t('is.altsline', alts=alts)}</span>",
                             unsafe_allow_html=True)
 
 # ---------------------------------------------------------------- studies
@@ -556,72 +569,79 @@ def _study_html(file):
     return html
 
 def page_atlas():
-    st.subheader("🗺️ موضوعات الرواة")
+    st.subheader(i18n.t('atlas.title'))
     st.markdown(
         "<div class='r-intro'>"
-        "<div>🔎 <b>ما هذه الأداة؟</b> أداةٌ تفاعليّة تُصنِّف أسانيد الكتب الحديثيّة بحسب <b>موضوعها</b> "
-        "(فقه، عقائد، دعاء، فضائل، أخلاق) وأبوابها (طهارة، صلاة، حج، نكاح…)، ثمّ تُظهر لكلّ راوٍ بصمتَه الموضوعيّة.</div>"
-        "<div>🧭 <b>ماذا تفعل؟</b> ابحث عن أيّ راوٍ لترى: في أيّ الأبواب يروي، ونسبةَ روايته الفقهيّة، "
-        "وتخصّصَه أو سعتَه، ومَن رماه الرجاليّون بالغلوّ (مع النصّ ومصدره).</div>"
-        "<div>📊 <b>وفيها ستّ دراسات</b> قابلةٌ للفرز والتصفية: المكثرون، نسبة الفقه، الغلاة والفقه، خريطة ضعف الأسانيد، نقاط الاختناق، بصمة التخصّص.</div>"
+        f"<div>{i18n.t('atlas.intro1')}</div>"
+        f"<div>{i18n.t('atlas.intro2')}</div>"
+        f"<div>{i18n.t('atlas.intro3')}</div>"
         "</div>", unsafe_allow_html=True)
-    st.markdown(
-        "<div class='r-verify'>⚠️ أداةٌ بحثيّة للاستئناس والاستكشاف لا للحكم النهائيّ — التصنيف مستخرَجٌ آليًّا من "
-        "فهارس الكتب، ونسبةُ الفقه نسبيّةٌ (المدوّنة فقهيّة الطابع)، فيُرجى دائماً الرجوع إلى المصدر الأصليّ والتحقّق منه.</div>",
-        unsafe_allow_html=True)
+    st.markdown(f"<div class='r-verify'>{i18n.t('atlas.verify')}</div>", unsafe_allow_html=True)
     html = _study_html('topic_atlas')
     if not html:
-        st.warning("تعذّر تحميل الأداة."); return
-    st.download_button("⬇ تحميل الأداة (HTML)", data=html.encode('utf-8'),
+        st.warning(i18n.t('atlas.loadfail')); return
+    st.download_button(i18n.t('atlas.download'), data=html.encode('utf-8'),
                        file_name="topic_atlas.html", mime="text/html", key="atlas_dl")
     _components.html(html, height=1250, scrolling=True)
 
 def page_studies():
-    st.subheader("📊 الدراسات")
-    st.markdown(
-        "<div class='r-verify'>هذه دراساتٌ بحثيّة تجريبيّة مبنيّةٌ على تحليل الأسانيد، للاستئناس والاستكشاف "
-        "لا للحكم النهائيّ — ويُرجى دائمًا الرجوع إلى المصدر الأصليّ والتحقّق منه.</div>",
-        unsafe_allow_html=True)
+    st.subheader(i18n.t('studies.title'))
+    st.markdown(f"<div class='r-verify'>{i18n.t('studies.verify')}</div>", unsafe_allow_html=True)
+    if i18n.is_en():
+        st.caption(i18n.t('studies.arabic_note'))
     sel = ss.get('study')
     if sel and sel in _STUDY_BY_FILE:
         it = _STUDY_BY_FILE[sel]
-        if st.button("↩ رجوع لقائمة الدراسات", key="study_back"):
+        if st.button(i18n.t('studies.back'), key="study_back"):
             ss['study'] = None; st.rerun()
-        st.markdown(f"### {it['title']}")
+        st.markdown(f"### {i18n.study_title(it)}")
         file = it['file']
         if it.get('variants'):
-            labels = [lbl for lbl, _ in it['variants']]
-            pick = st.radio("طول السلسلة", labels, horizontal=True, key="study_variant",
-                            label_visibility="collapsed")
-            file = dict(it['variants'])[pick]
+            vals = [v for _, v in it['variants']]
+            arlbl = {v: lbl for lbl, v in it['variants']}
+            pick = st.radio(i18n.t('studies.variant'), vals, horizontal=True, key="study_variant",
+                            label_visibility="collapsed", format_func=lambda v: i18n.variant_label(arlbl[v]))
+            file = pick
         html = _study_html(file)
         if not html:
-            st.warning("تعذّر تحميل هذه الدراسة."); return
-        st.download_button("⬇ تحميل التقرير (HTML)", data=html.encode('utf-8'),
+            st.warning(i18n.t('studies.loadfail')); return
+        st.download_button(i18n.t('studies.download'), data=html.encode('utf-8'),
                            file_name=f"{file}.html", mime="text/html", key="study_dl")
         _components.html(html, height=(1250 if file == 'topic_atlas' else 900), scrolling=True)
         return
     for group, items in STUDY_GROUPS:
-        st.markdown(f"<div class='r-studygroup'>{group}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='r-studygroup'>{i18n.group_label(group)}</div>", unsafe_allow_html=True)
         cols = st.columns(2)
         for i, it in enumerate(items):
             with cols[i % 2]:
-                badge = f" · <span class='r-badge'>{it['badge']}</span>" if it.get('badge') else ''
-                st.markdown(ui.tile(it['title'], '', it['desc'] + badge), unsafe_allow_html=True)
-                if st.button("فتح الدراسة", key=f"open_{it['file']}", use_container_width=True):
+                badge = f" · <span class='r-badge'>{i18n.study_badge(it['badge'])}</span>" if it.get('badge') else ''
+                st.markdown(ui.tile(i18n.study_title(it), '', i18n.study_desc(it) + badge), unsafe_allow_html=True)
+                if st.button(i18n.t('studies.open'), key=f"open_{it['file']}", use_container_width=True):
                     ss['study'] = it['file']; st.rerun()
 
-# ---------------------------------------------------------------- nav + sidebar
-nav = st.segmented_control("التنقل", NAV, key="nav", label_visibility="collapsed") or NAV[0]
+# ---------------------------------------------------------------- language + nav + sidebar
+_lc, _nc = st.columns([1, 4])
+with _lc:
+    st.segmented_control(i18n.t('lang.label'), ['ar', 'en'], key="lang", label_visibility="collapsed",
+                         format_func=lambda l: 'عربي' if l == 'ar' else 'English')
+# direction: verbatim-Arabic blocks stay RTL; the rest flips to LTR in English mode
+if i18n.is_en():
+    st.markdown("<style>.main .block-container, section[data-testid='stSidebar']{direction:ltr!important;text-align:left!important;}"
+                "div[data-testid='stSegmentedControl']{direction:ltr!important;}"
+                ".r-quote,.r-bookpage{direction:rtl!important;text-align:right!important;}</style>",
+                unsafe_allow_html=True)
+with _nc:
+    nav = st.segmented_control(i18n.t('nav.label'), NAV, key="nav", label_visibility="collapsed",
+                               format_func=lambda k: i18n.t('nav.' + k)) or NAV[0]
 
 with st.sidebar:
-    st.markdown("## 📜 موسوعة الرجال")
+    st.markdown(f"## {i18n.t('home.title')}")
     s = db.global_stats()
-    st.caption(f"{s['narrators']:,} راوٍ · {s['books']} كتب · {s['chains']:,} سند\n\n"
-               f"التقويم: {s['evals']:,} (دراية النور)\n\n"
-               f"الطبقات: {s['tabaqah']:,} راوياً")
+    st.caption(i18n.t('side.stats', nar=f"{s['narrators']:,}", books=s['books'], chains=f"{s['chains']:,}") + "\n\n"
+               + i18n.t('side.evals', evals=f"{s['evals']:,}") + "\n\n"
+               + i18n.t('side.tabaqah', tab=f"{s['tabaqah']:,}"))
     st.divider()
-    st.caption("المصادر: دراية النور ٣ (CRCIS) · كتب الرجال العشرة · ألف رجل")
+    st.caption(i18n.t('side.sources'))
 
 {NAV[0]: page_home, NAV[1]: page_library, NAV[2]: page_books, NAV[3]: page_isnad,
  NAV[4]: page_atlas, NAV[5]: page_studies}[nav]()
