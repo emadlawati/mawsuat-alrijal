@@ -6,12 +6,14 @@ import streamlit as st
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _CORE = os.path.join(os.path.dirname(_HERE), 'rijal_core.db')   # local development (live data)
-_PUBLIC = os.path.join(_HERE, 'rijal_public_v21.db')           # versioned cache → re-downloads on bump
+_PUBLIC = os.path.join(_HERE, 'rijal_public_v22.db')           # versioned cache → re-downloads on bump
 # Deployed app downloads the DB from a GitHub Release asset on first boot.
-# v2.1 = pure-Dirayah identity fix: ravilist/name bridge restricted to Dirayah's actual name-forms
-#        (standard/alias), so disambiguation notes (تصحیف عن…) no longer mis-merge narrators
-#        (e.g. «عبد الله بن زرارة» split off زرارة). v2.0 = all rijāl books re-matched pure-Dirayah.
+# v2.2 = «في الكتب» fix: per-entry text sliced by order-independent headword anchoring (progressive
+#        name-prefix, cross-page spans) — no more whole multi-entry pages; + deterministic
+#        exact-unique-name tier recovers 4,927 links (match_method='exact_name').
+# v2.1 = pure-Dirayah identity fix (disambiguation name-types no longer merge narrators).
 DB_URLS = [
+    "https://github.com/emadlawati/mawsuat-alrijal/releases/download/v2.2/rijal_public.db",
     "https://github.com/emadlawati/mawsuat-alrijal/releases/download/v2.1/rijal_public.db",
     "https://github.com/emadlawati/mawsuat-alrijal/releases/download/v2.0/rijal_public.db",
     "https://github.com/emadlawati/mawsuat-alrijal/releases/download/v1.5/rijal_public.db",
