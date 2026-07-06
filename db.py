@@ -6,13 +6,14 @@ import streamlit as st
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _CORE = os.path.join(os.path.dirname(_HERE), 'rijal_core.db')   # local development (live data)
-_PUBLIC = os.path.join(_HERE, 'rijal_public_v22.db')           # versioned cache → re-downloads on bump
+_PUBLIC = os.path.join(_HERE, 'rijal_public_v23.db')           # versioned cache → re-downloads on bump
 # Deployed app downloads the DB from a GitHub Release asset on first boot.
-# v2.2 = «في الكتب» fix: per-entry text sliced by order-independent headword anchoring (progressive
-#        name-prefix, cross-page spans) — no more whole multi-entry pages; + deterministic
-#        exact-unique-name tier recovers 4,927 links (match_method='exact_name').
+# v2.3 = official-anchor slicing (Dirayah StartIndexPos disambiguation + EndPage caps), exact-name
+#        recovery extended to legacy books (+673 mufid_mujam), bio_vol/bio_page refreshed, FTS rebuilt.
+# v2.2 = «في الكتب» slicing fix + exact-unique-name tier (4,927 links).
 # v2.1 = pure-Dirayah identity fix (disambiguation name-types no longer merge narrators).
 DB_URLS = [
+    "https://github.com/emadlawati/mawsuat-alrijal/releases/download/v2.3/rijal_public.db",
     "https://github.com/emadlawati/mawsuat-alrijal/releases/download/v2.2/rijal_public.db",
     "https://github.com/emadlawati/mawsuat-alrijal/releases/download/v2.1/rijal_public.db",
     "https://github.com/emadlawati/mawsuat-alrijal/releases/download/v2.0/rijal_public.db",
@@ -137,7 +138,7 @@ def narrator(d_id):
         SELECT n.d_id, n.standard_name, r.chain_count FROM relations r
         JOIN narrators n ON n.d_id=r.student_did WHERE r.teacher_did=? ORDER BY r.chain_count DESC""", (d_id,))]
     d['books'] = [dict(x) for x in c.execute("""
-        SELECT book_id, entry_no, page, text FROM book_entries
+        SELECT book_id, entry_no, page, bio_vol, bio_page, text FROM book_entries
         WHERE d_id=? AND text IS NOT NULL ORDER BY book_id""", (d_id,))]
     d['chain_count'] = c.execute("SELECT COUNT(DISTINCT chain_id) FROM chain_narrators WHERE d_id=?", (d_id,)).fetchone()[0]
     return d
@@ -163,16 +164,79 @@ def book_entries(book_id, q='', limit=300, offset=0):
             (q+'*', book_id, limit))]
         if ids:
             qmarks = ','.join('?'*len(ids))
-            rows = c.execute(f"SELECT rowid,d_id,entry_no,headword,page,text FROM book_entries WHERE rowid IN ({qmarks})", ids).fetchall()
+            rows = c.execute(f"SELECT rowid,d_id,entry_no,headword,page,bio_vol,bio_page,text FROM book_entries WHERE rowid IN ({qmarks})", ids).fetchall()
             return [dict(x) for x in rows]
         # fallback LIKE on headword
         qn = '%'+q.strip()+'%'
         return [dict(x) for x in c.execute(
-            "SELECT rowid,d_id,entry_no,headword,page,text FROM book_entries WHERE book_id=? AND headword LIKE ? LIMIT ?",
+            "SELECT rowid,d_id,entry_no,headword,page,bio_vol,bio_page,text FROM book_entries WHERE book_id=? AND headword LIKE ? LIMIT ?",
             (book_id, qn, limit))]
     return [dict(x) for x in c.execute(
-        "SELECT rowid,d_id,entry_no,headword,page,text FROM book_entries WHERE book_id=? ORDER BY CAST(entry_no AS INTEGER) LIMIT ? OFFSET ?",
+        "SELECT rowid,d_id,entry_no,headword,page,bio_vol,bio_page,text FROM book_entries WHERE book_id=? ORDER BY CAST(entry_no AS INTEGER) LIMIT ? OFFSET ?",
         (book_id, limit, offset))]
+
+def search_book_texts(q, limit=12):
+    """Omnibox: FTS over all book entries → [{book_id, headword, page, d_id}]."""
+    if not q or len(q.strip()) < 2: return []
+    c = _conn()
+    try:
+        ids = [r['rowid'] for r in c.execute(
+            "SELECT rowid FROM book_entries_fts WHERE book_entries_fts MATCH ? LIMIT ?",
+            (q.strip() + '*', limit))]
+    except Exception:
+        return []
+    if not ids: return []
+    qmarks = ','.join('?' * len(ids))
+    return [dict(x) for x in c.execute(
+        f"SELECT book_id, headword, page, d_id FROM book_entries WHERE rowid IN ({qmarks})", ids)]
+
+# ---------- in-text narrator name linking ----------
+@st.cache_resource
+def _linkname_index():
+    """norm(name) -> d_id for name-forms that uniquely identify ONE narrator (Dirayah standard/alias
+    only — same rule as the exact-name matching tier); + first-token index for fast scanning."""
+    c = _conn()
+    nd = {}
+    for d, nm in c.execute("SELECT d_id, standard_name FROM narrators"):
+        nd.setdefault(norm(nm), set()).add(d)
+    for d, nm in c.execute("SELECT d_id, name FROM names WHERE name_type IN ('standard','alias')"):
+        nd.setdefault(norm(nm), set()).add(d)
+    uniq = {nm: next(iter(s)) for nm, s in nd.items() if len(s) == 1 and nm}
+    first = {}
+    for nm in uniq:
+        toks = tuple(nm.split())
+        first.setdefault(toks[0], []).append(toks)
+    for k in first: first[k].sort(key=len, reverse=True)
+    return uniq, first
+
+_WORD_RE = re.compile(r'[^\s،؛,.:()\[\]«»"…؟!؟]+')
+def linkify(text, self_did=None):
+    """Wrap mentions of exact-unique narrator name-forms in ?n= profile deep links."""
+    if not text: return text
+    uniq, first = _linkname_index()
+    toks = [(m.group(), m.start(), m.end()) for m in _WORD_RE.finditer(text)]
+    ntoks = [norm(t) for t, _, _ in toks]
+    out = []; last = 0; i = 0
+    while i < len(toks):
+        hit = 0
+        for cand in (first.get(ntoks[i]) or ()) if ntoks[i] else ():
+            k = len(cand)
+            if k == 1 and len(cand[0]) < 4: continue          # single short tokens: too noisy
+            if i + k > len(toks) or tuple(ntoks[i:i+k]) != cand: continue
+            # a name must not straddle punctuation — whitespace-only between its tokens
+            if any(text[toks[j][2]:toks[j+1][1]].strip() for j in range(i, i + k - 1)): continue
+            hit = k; break                                     # candidates are longest-first
+        if hit:
+            s, e = toks[i][1], toks[i + hit - 1][2]
+            d = uniq[' '.join(ntoks[i:i+hit])]
+            out.append(text[last:s])
+            out.append(text[s:e] if d == self_did else
+                       f"<a class='r-namelink' href='?n={d}' target='_self'>{text[s:e]}</a>")
+            last = e; i += hit
+        else:
+            i += 1
+    out.append(text[last:])
+    return ''.join(out)
 
 # ---------- chains / isnad ----------
 def search_chains(book_id=None, narrator_did=None, masum_only=False, limit=100):

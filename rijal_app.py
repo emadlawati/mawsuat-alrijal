@@ -60,11 +60,21 @@ NAV = ['home', 'narrators', 'books', 'isnad', 'atlas', 'studies']
 ss.setdefault('nav', NAV[0])
 
 # ---- deep links (must run before the nav widget) ----
+# Consumed ONCE per browser session: link clicks reload the page (fresh session), while in-app
+# navigation keeps the session — so a stale URL never drags the user back. The URL itself is
+# kept in sync with the current location at the end of the script (shareable deep links).
 qp = st.query_params
-if qp.get('n'):
-    ss['d_id'] = qp['n']; ss['nav'] = NAV[1]; st.query_params.clear()
-if qp.get('book'):
-    ss['cur_book'] = qp['book']; ss['nav'] = NAV[2]; st.query_params.clear()
+if not ss.get('_qp_consumed'):
+    ss['_qp_consumed'] = True
+    if qp.get('n'):
+        ss['d_id'] = qp['n']; ss['nav'] = NAV[1]
+    if qp.get('book'):
+        ss['cur_book'] = qp['book']; ss['nav'] = NAV[2]
+        if qp.get('p'):
+            try: ss['bk_page'] = int(qp['p']); ss['bk_view'] = 'full'
+            except ValueError: pass
+    if qp.get('s'):
+        ss['study'] = qp['s']; ss['nav'] = NAV[5]
 if 'nav_goto' in ss:
     ss['nav'] = ss.pop('nav_goto')
 
@@ -234,8 +244,14 @@ def render_profile(d_id):
         shown = False
         for b in n['books']:
             shown = True
-            with st.expander(f"{i18n.book_title(b['book_id'])} — {i18n.pglabel(b['page'])}"):
-                st.markdown(ui.quote(b['text'] or '—'), unsafe_allow_html=True)
+            loc = i18n.pglabel(b['page'])
+            if b.get('bio_page'):                       # dual reference: our edition + Dirayah's
+                vv = str(b.get('bio_vol') or '')
+                vtxt = ((f"v{vv} " if i18n.is_en() else f"ج{vv} ") if vv not in ('', '1') else '')
+                loc += ' · ' + i18n.t('p.dirloc', v=vtxt, p=b['bio_page'])
+            with st.expander(f"{i18n.book_title(b['book_id'])} — {loc}"):
+                st.markdown(ui.quote(db.linkify(b['text'], d_id) if b['text'] else '—'),
+                            unsafe_allow_html=True)
         if not shown: st.caption(i18n.t('p.nobooktext'))
         # authoritative Dirayah bio-location index — additional rijāl books (location only, no full text yet)
         nbks = db.narrator_books(d_id)
@@ -328,6 +344,15 @@ def page_home():
         res = db.search_narrators(q)
         st.caption(i18n.t('home.nresults', n=len(res)))
         result_rows(res, 'h')
+        hits = db.search_book_texts(q)                  # omnibox: also search the book texts
+        if hits:
+            st.markdown(f"**{i18n.t('home.sec.texts')}**")
+            html = ''
+            for h in hits:
+                lbl = f"{i18n.book_title(h['book_id'])} — {i18n.disp_name(h['headword'], html=True)} ({i18n.pglabel(h['page'])})"
+                href = f"?n={h['d_id']}" if h['d_id'] else f"?book={h['book_id']}"
+                html += f"<a class='r-row' href='{href}'><span class='nm2'>📖 {lbl}</span></a>"
+            st.markdown(html, unsafe_allow_html=True)
         return
     st.markdown(ui.statband([
         (f"{s['narrators']:,}", i18n.t('home.stat.narrators')), (f"{s['evals']:,}", i18n.t('home.stat.evals')),
@@ -427,12 +452,28 @@ def page_books():
                 ss['be_page'] += 1; st.rerun()
             entries = db.book_entries(bid, '', limit=PER, offset=ss['be_page'] * PER)
         vm = db.verdict_map()
+        vols = db.book_vols(bid)
         for e in entries:
             em = db.reliability(vm[e['d_id']])[2] if e['d_id'] in vm else ''
-            with st.expander(f"{em} [{e['entry_no']}] {i18n.disp_name(e['headword'])} — {i18n.pglabel(e['page'])}"):
-                st.markdown(ui.quote(e['text'] or '—'), unsafe_allow_html=True)
-                if e['d_id'] and st.button(i18n.t('bk.entry.full'), key=f"be{e['rowid']}"):
+            loc = i18n.pglabel(e['page'])
+            if e.get('bio_page'):                       # dual reference: our edition + Dirayah's
+                vv = str(e.get('bio_vol') or '')
+                vtxt = ((f"v{vv} " if i18n.is_en() else f"ج{vv} ") if vv not in ('', '1') else '')
+                loc += ' · ' + i18n.t('p.dirloc', v=vtxt, p=e['bio_page'])
+            with st.expander(f"{em} [{e['entry_no']}] {i18n.disp_name(e['headword'])} — {loc}"):
+                st.markdown(ui.quote(db.linkify(e['text'], e['d_id']) if e['text'] else '—'),
+                            unsafe_allow_html=True)
+                bc1, bc2 = st.columns(2)
+                if e['d_id'] and bc1.button(i18n.t('bk.entry.full'), key=f"be{e['rowid']}"):
                     goto(NAV[1], d_id=e['d_id'])
+                can_jump = 'full' in VIEWS and e['page'] and (len(vols) <= 1 or e.get('bio_vol'))
+                if can_jump and bc2.button(i18n.t('bk.openpage'), key=f"bp{e['rowid']}"):
+                    ss['bk_view'] = 'full'
+                    ss['bk_page'] = int(e['page'])
+                    if len(vols) > 1 and e.get('bio_vol'):
+                        try: ss['bk_vol'] = int(e['bio_vol'])
+                        except (TypeError, ValueError): pass
+                    st.rerun()
     else:
         vols = db.book_vols(bid)
         vol = st.selectbox(i18n.t('bk.vol.label'), vols, format_func=lambda v: i18n.t('bk.vol', v=v), key="bk_vol") if len(vols) > 1 else (vols[0] if vols else 1)
@@ -455,8 +496,11 @@ def page_books():
         page = ss['bk_page'] if (ss['bk_page'] and mn <= ss['bk_page'] <= mx) else mn
         c1, c2, c3 = st.columns([1, 3, 1])
         if c1.button(i18n.t('bk.prevpage'), disabled=page <= mn): ss['bk_page'] = page - 1; st.rerun()
-        newp = c2.slider(i18n.t('bk.pageword'), mn, mx, page, key="bk_slider", label_visibility="collapsed")
-        if newp != page: ss['bk_page'] = newp; st.rerun()
+        # page-keyed number input: recreated whenever the page changes elsewhere (TOC/FTS/entry
+        # jumps), so it never fights the current page the way a statically-keyed slider does
+        newp = c2.number_input(i18n.t('bk.pageword'), mn, mx, page, key=f"bknum_{bid}_{vol}_{page}",
+                               label_visibility="collapsed")
+        if newp != page: ss['bk_page'] = int(newp); st.rerun()
         if c3.button(i18n.t('bk.nextpage'), disabled=page >= mx): ss['bk_page'] = page + 1; st.rerun()
         txt = db.book_page(bid, vol, page) or '—'
         if sq and sq.strip() and sq in txt:
@@ -519,6 +563,12 @@ STUDY_GROUPS = [
          "desc": "تعارض المنع الرجاليّ مع إكثار الأجلّاء — يُبرَز ولا يُحسَم."},
         {"file": "practical_impact_ranking", "title": "الأثر العمليّ والاختناق",
          "desc": "أكثر الرواة تأثيرًا في الأسانيد الفقهيّة، ونقاطُ الاختناق التي لا بديل لها."},
+        {"file": "study_repair_impact", "title": "أيّ راوٍ يُصلح أكثر الأسانيد؟",
+         "desc": "لكل سندٍ ضعيفٍ رجاليًّا: مَن الراوي الوحيد غير الموثَّق فيه؟ ترتيبُ أهداف التحقيق بأثرها على التقييم الرسميّ."},
+        {"file": "study_network_centrality", "title": "أعمدة الشبكة وعنق الزجاجة",
+         "desc": "محاور كلّ طبقة، ومَن يمرّ بهم القدرُ الأكبر من تراث كلّ إمام، وجسورُ الأجيال الكبرى."},
+        {"file": "study_nisba_geography", "title": "أطلس النِّسَب الجغرافية",
+         "desc": "هجرةُ الرواية من الكوفة إلى قم وبغداد — النسبُ الجغرافية على الطبقات، ومدارسُ المدن وتقويمُها."},
         {"file": "identity_audit", "title": "تدقيق الهويّة",
          "desc": "مرشّحات الاتّحاد والتصحيف، وتمييزُ المشترَك (ما لا يُدمَج)."},
         {"file": "madhhab_network", "title": "شبكة المذاهب",
@@ -551,6 +601,8 @@ STUDY_GROUPS = [
          "desc": "توزيع ما رُوي عن كلّ معصومٍ على الأبواب، ونسبةُ الصحيح من أسانيده."},
         {"file": "study_grading_methods", "title": "منهجا التقييم — أضعف الرواة والتقييم الرسميّ",
          "desc": "أين يتوافق حكمُ «بأضعف رواته» مع تقييم دراية الرسميّ وأين يفترقان — والإرسالُ سرُّ الفرق."},
+        {"file": "study_ayat_narrators", "title": "القرآن في الرواية",
+         "desc": "استشهاداتُ القرآن في كتب الحديث موصولةً بالأسانيد: أيّ سورةٍ يحملها تراثُ كلّ راوٍ وكلّ إمام."},
         {"file": "dataset_validation", "title": "التحقّق من البيانات",
          "desc": "مقارنة طبقاتنا المستنبَطة سابقًا بالتصدير المعتمد الكامل: الموضوعات، التقييم، الاتصال، المطابقة."},
         {"file": "bio_reconcile", "title": "مطابقة كتب الرجال",
@@ -645,3 +697,18 @@ with st.sidebar:
 
 {NAV[0]: page_home, NAV[1]: page_library, NAV[2]: page_books, NAV[3]: page_isnad,
  NAV[4]: page_atlas, NAV[5]: page_studies}[nav]()
+
+# ---- keep the URL in sync with the current location (shareable deep links) ----
+_want = {}
+if nav == NAV[1] and ss.get('d_id'):
+    _want['n'] = ss['d_id']
+elif nav == NAV[2] and ss.get('cur_book'):
+    _want['book'] = ss['cur_book']
+    if ss.get('bk_view') == 'full' and ss.get('bk_page'):
+        _want['p'] = str(ss['bk_page'])
+elif nav == NAV[5] and ss.get('study'):
+    _want['s'] = ss['study']
+if {k: v for k, v in st.query_params.items()} != _want:
+    st.query_params.clear()
+    for _k, _v in _want.items():
+        st.query_params[_k] = _v

@@ -73,6 +73,12 @@ a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visib
   background: var(--bg-soft); border-radius: 10px; border-right: 3px solid var(--gold);
   padding: 12px 18px; margin: 8px 0; color: var(--ink);
 }
+/* in-text narrator mention links (exact-unique Dirayah name-forms) */
+.r-namelink {
+  color: inherit !important; text-decoration: none !important;
+  border-bottom: 1px dotted var(--gold); cursor: pointer;
+}
+.r-namelink:hover { color: var(--thiqa) !important; border-bottom-style: solid; }
 .r-bookpage {
   font-family: 'Amiri', serif !important; font-size: 1.18rem; line-height: 2.15;
   background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);

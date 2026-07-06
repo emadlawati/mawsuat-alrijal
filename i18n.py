@@ -194,6 +194,7 @@ T = {
                      'en': 'No extracted biography in the books for this narrator.'},
     'p.alsoin': {'ar': '📍 <b>وردت له ترجمة أيضًا في (فهرسة دراية المعتمدة):</b>',
                  'en': '📍 <b>Also has a biography in (Dirāya’s authoritative index):</b>'},
+    'p.dirloc': {'ar': 'دراية: {v}ص{p}', 'en': 'Dirāya: {v}p{p}'},
 
     # network
     'net.slider': {'ar': 'عدد الشيوخ/التلاميذ المعروضين', 'en': 'Teachers/students shown'},
@@ -235,6 +236,7 @@ T = {
     'home.search.ph': {'ar': 'مثال: زرارة بن أعين · محمد بن يعقوب الكليني · أبو بصير',
                        'en': 'e.g. Zurāra b. Aʿyan · al-Kulaynī · Abū Baṣīr — you may type in Arabic'},
     'home.nresults': {'ar': '{n} نتيجة', 'en': '{n} result(s)'},
+    'home.sec.texts': {'ar': 'في نصوص كتب الرجال', 'en': 'In the rijāl book texts'},
     'home.stat.narrators': {'ar': 'راوياً', 'en': 'narrators'},
     'home.stat.evals': {'ar': 'تقويم دراية النور', 'en': 'Dirāya al-Nūr appraisals'},
     'home.stat.tabaqah': {'ar': 'راوياً معلوم الطبقة', 'en': 'narrators with known ṭabaqa'},
@@ -278,6 +280,7 @@ T = {
     'bk.nresults': {'ar': '{n} نتيجة', 'en': '{n} result(s)'},
     'bk.page': {'ar': 'صفحة {p} من {n} · {t} ترجمة', 'en': 'Page {p} of {n} · {t} biographies'},
     'bk.entry.full': {'ar': '↩ عرض ترجمة الراوي الكاملة', 'en': '↩ Open the narrator’s full profile'},
+    'bk.openpage': {'ar': '📖 فتحها في صفحة الكتاب', 'en': '📖 Open in the book page'},
     'bk.vol': {'ar': 'الجزء {v}', 'en': 'Volume {v}'},
     'bk.vol.label': {'ar': 'الجزء', 'en': 'Volume'},
     'bk.toc.head': {'ar': '— فهرس المحتويات —', 'en': '— Table of contents —'},
@@ -416,6 +419,14 @@ STUDY_EN = {
         'Comparing our previously-inferred ṭabaqāt with the full authoritative export: topics, grading, connection, matching.'),
     'bio_reconcile': ('Reconciling the rijāl books',
         'Fixing narrator biographies against Dirāya’s authoritative index, adding Jāmiʿ al-Ruwāt, Manhaj al-Maqāl & ʿUddat al-Rijāl.'),
+    'study_repair_impact': ('Which narrator repairs the most chains?',
+        'For each chain weak on rijālī grounds: who is its single unauthenticated narrator? Research targets ranked by impact on the official grading.'),
+    'study_network_centrality': ('Pillars of the network & bottlenecks',
+        'The hubs of every ṭabaqa, the men through whom most of each Imam’s corpus passes, and the great inter-generation bridges.'),
+    'study_nisba_geography': ('Atlas of geographic nisbas',
+        'Transmission’s migration from Kūfa to Qum and Baghdad — geographic nisbas across the ṭabaqāt, and each city’s school and its appraisal.'),
+    'study_ayat_narrators': ('The Qurʾān in transmission',
+        'Qurʾān citations in the ḥadīth books joined to their chains: which sūras each narrator’s and each Imam’s corpus carries.'),
 }
 STUDY_VARIANT_EN = {'ثنائية': 'bigrams', 'ثلاثية': 'trigrams', 'رباعية': 'four-grams'}
 STUDY_BADGE_EN = {'تقريبيّ — مستوى المجلّد': 'approximate — volume level'}
