@@ -336,6 +336,7 @@ def page_home():
         f"<div>{i18n.t('home.intro1', n=format(s['narrators'], ','))}</div>"
         f"<div>{i18n.t('home.intro2')}</div>"
         f"<div>{i18n.t('home.intro3')}</div>"
+        f"<div>{i18n.t('home.intro5')}</div>"
         f"<div>{i18n.t('home.intro4')}</div>"
         "</div>", unsafe_allow_html=True)
     st.markdown(f"<div class='r-verify'>{i18n.t('home.verify')}</div>", unsafe_allow_html=True)
