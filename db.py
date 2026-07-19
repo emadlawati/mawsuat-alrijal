@@ -1,7 +1,7 @@
 """Data-access layer for the Rijal app. Cached SQLite queries over rijal_public.db.
 On Streamlit Cloud the database (347MB) is too large for the git repo, so it is downloaded
 once from the GitHub Release asset on first boot and cached on local disk."""
-import os, re, sqlite3, json, urllib.request, math
+import os, re, sqlite3, json, urllib.request, math, unicodedata
 import streamlit as st
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -106,8 +106,56 @@ def narrator_index():
         rows.append((d, r['standard_name'], norm(blob), r['sand_count'] or 0))
     return rows
 
+# ---------- Latin (transliterated) search ----------
+_TR_MARKS = "ʿʾʼʻʹ'`´ʻʽ"
+def fold_latin(s):
+    """'Zurāra b. Aʿyan al-Shaybānī' -> 'zurara b ayan al shaybani' — diacritics, ʿayn/hamza and
+    hyphens dropped, and ibn/bin/b. unified, so a plain-ASCII query matches the scholarly spelling."""
+    if not s: return ''
+    s = unicodedata.normalize('NFD', s)
+    s = ''.join(c for c in s if not unicodedata.combining(c))
+    s = ''.join(c for c in s if c not in _TR_MARKS)
+    s = s.lower().replace('-', ' ').replace('.', ' ').replace('’', ' ').replace('‘', ' ')
+    toks = ['b' if t in ('ibn', 'bin', 'b') else t for t in s.split()]
+    return ' '.join(toks)
+
+@st.cache_resource
+def latin_index():
+    """[(d_id, standard_name, folded_latin_blob, sand_count)] — built once, from the same name-forms
+    the Arabic index uses, so English users can type 'zurara' / 'kulayni' / 'abu basir'."""
+    import translit
+    c = _conn()
+    names = {}
+    for d, nm in c.execute("SELECT d_id, name FROM names"):
+        names.setdefault(d, []).append(nm)
+    cache = {}
+    def tr(x):
+        if x not in cache: cache[x] = translit.translit_name(x) or ''
+        return cache[x]
+    rows = []
+    for r in c.execute("SELECT d_id, standard_name, kunya, sand_count FROM narrators"):
+        d = r['d_id']
+        parts = [r['standard_name'] or ''] + names.get(d, []) + [r['kunya'] or '']
+        blob = fold_latin(' · '.join(tr(p) for p in parts if p))
+        rows.append((d, r['standard_name'], blob, r['sand_count'] or 0))
+    return rows
+
+_HAS_LATIN = re.compile(r'[a-zA-Z]')
 def search_narrators(q, limit=60):
     if not q or len(q.strip()) < 2: return []
+    # script detection: a Latin-lettered query searches the transliteration index (works in both
+    # UI languages), anything else the Arabic one
+    if _HAS_LATIN.search(q):
+        qn = fold_latin(q); terms = qn.split()
+        if not terms: return []
+        out = []
+        for d, name, blob, sc in latin_index():
+            if all(t in blob for t in terms):
+                first = blob.split(' · ')[0] if ' · ' in blob else blob
+                score = 4 if first == qn else (3 if blob.startswith(qn) else (2 if qn in blob else 1))
+                out.append((score, sc, d, name))
+        out.sort(key=lambda x: (-x[0], -x[1]))
+        return [(d, name) for _, _, d, name in out[:limit]]
     qn = norm(q); terms = qn.split()
     out = []
     for d, name, blob, sc in narrator_index():
